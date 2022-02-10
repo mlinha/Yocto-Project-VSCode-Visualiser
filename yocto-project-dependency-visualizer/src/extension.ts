@@ -1,26 +1,59 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import * as cp from 'child_process';
+import { existsSync, writeFileSync } from 'fs';
+import { DotParser } from './parser/DotParser';
+import { VisualizationPanel } from './panel/VisualizationPanel';
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
-	
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "yocto-project-dependency-visualizer" is now active!');
-
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('yocto-project-dependency-visualizer.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from Yocto Project Dependency Visualizer!');
+function callBitbake(path: string) {
+	// use linux cd
+	cp.exec('pushd' + path + " && dir", (err: any, stdout: any, stderr: any) => {
+		console.log('stdout: ' + stdout);
+		console.log('stderr: ' + stderr);
+		if (err) {
+			console.log('error: ' + err);
+		}
 	});
-
-	context.subscriptions.push(disposable);
 }
 
-// this method is called when your extension is deactivated
+export function activate(context: vscode.ExtensionContext) {
+	context.subscriptions.push(
+		vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
+			
+			if (vscode.workspace.workspaceFolders !== undefined) {
+				const dotPath = vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/task-depends.dot";
+				if (!existsSync(dotPath)) {
+					console.log(vscode.workspace.workspaceFolders[0].uri.fsPath);
+					callBitbake(vscode.workspace.workspaceFolders[0].uri.fsPath);
+				}
+
+				var dotParser = new DotParser(dotPath);
+				var graphString = dotParser.parseDotFile();
+				writeFileSync(vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/graph.json", graphString);
+				VisualizationPanel.graphString = graphString;
+			}
+			
+			VisualizationPanel.createOrShow(context.extensionUri);
+		})
+	);
+}
+
 export function deactivate() {}
+
+//function getWebviewOptions(extensionUri: vscode.Uri): vscode.WebviewOptions {
+//	return {
+//		// Enable javascript in the webview
+//		enableScripts: true,
+//
+//		// And restrict the webview to only loading content from our extension's `media` directory.
+//		localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
+//	};
+//}
+
+export function getNonce() {
+	let text = '';
+	const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+	for (let i = 0; i < 32; i++) {
+		text += possible.charAt(Math.floor(Math.random() * possible.length));
+	}
+	return text;
+}
