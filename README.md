@@ -7,8 +7,8 @@ An Visual Studio Code extension development. The developed extension can be used
 1. Load bitbake generated task-depends.dot file and parse it (currently only connections with the following format are parsed: *"x.do_prepare_recipe_sysroot" -> "y.do_populate_sysroot"*).
 2. Use parsed data to create a node-link diagram.
 3. Basic interactivity in the displayed diagram:
-  - pan and zoom
-  - remove unwanted nodes
+    - pan and zoom
+    - remove unwanted nodes
  
 # Future work
 
