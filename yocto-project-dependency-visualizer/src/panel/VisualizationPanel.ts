@@ -8,7 +8,7 @@ export class VisualizationPanel {
    */
   public static currentPanel: VisualizationPanel | undefined;
 
-  public static readonly viewType = "hello";
+  public static readonly viewType = "visualization";
 
   private readonly _panel: vscode.WebviewPanel;
   private readonly _extensionUri: vscode.Uri;
@@ -31,7 +31,7 @@ export class VisualizationPanel {
     // Otherwise, create a new panel.
     const panel = vscode.window.createWebviewPanel(
       VisualizationPanel.viewType,
-      "Hello",
+      "Visualization",
       column || vscode.ViewColumn.One,
       {
         // Enable javascript in the webview
@@ -67,19 +67,6 @@ export class VisualizationPanel {
     // Listen for when the panel is disposed
     // This happens when the user closes the panel or when the panel is closed programatically
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
-
-    // // Handle messages from the webview
-    // this._panel.webview.onDidReceiveMessage(
-    //   (message) => {
-    //     switch (message.command) {
-    //       case "alert":
-    //         vscode.window.showErrorMessage(message.text);
-    //         return;
-    //     }
-    //   },
-    //   null,
-    //   this._disposables
-    // );
   }
 
   public dispose() {
@@ -100,20 +87,19 @@ export class VisualizationPanel {
     const webview = this._panel.webview;
 
     this._panel.webview.html = this._getHtmlForWebview(webview);
+
     webview.onDidReceiveMessage(async (data) => {
-      switch (data.type) {
-        case "onInfo": {
-          if (!data.value) {
+      switch (data.command) {
+        case "open-file": {
+          console.log("Message: " + data.filename)
+          if (!data.filename) {
             return;
           }
-          vscode.window.showInformationMessage(data.value);
-          break;
-        }
-        case "onError": {
-          if (!data.value) {
-            return;
-          }
-          vscode.window.showErrorMessage(data.value);
+          vscode.window.showInformationMessage(data.filename);
+          //vscode.window.showTextDocument(data.filename);
+
+          vscode.workspace.openTextDocument(data.filename).then(
+            document => vscode.window.showTextDocument(document));
           break;
         }
       }
@@ -125,7 +111,7 @@ export class VisualizationPanel {
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this._extensionUri, "media", "main.js")
     );
-    
+
     // Local path to css styles
 
     // Uri to load styles into webview
@@ -142,7 +128,7 @@ export class VisualizationPanel {
     //const cssUri = webview.asWebviewUri(
     //  vscode.Uri.joinPath(this._extensionUri, "out", "compiled/hello.css")
     //);
-//
+    //
     //// Use a nonce to only allow specific scripts to be run
     const nonce = getNonce();
 
@@ -154,9 +140,8 @@ export class VisualizationPanel {
 					Use a content security policy to only allow loading images from https or from our extension directory,
 					and only allow scripts that have a specific nonce.
         -->
-        <meta http-equiv="Content-Security-Policy" content="img-src https: data:; style-src 'unsafe-inline' ${
-      webview.cspSource
-    }; script-src 'nonce-${nonce}';">
+        <meta http-equiv="Content-Security-Policy" content="img-src https: data:; style-src 'unsafe-inline' ${webview.cspSource
+      }; script-src 'nonce-${nonce}';">
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
 				<link href="${stylesMainUri}" rel="stylesheet">
 				<link href="${stylesResetUri}" rel="stylesheet">

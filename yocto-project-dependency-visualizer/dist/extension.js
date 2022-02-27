@@ -110,25 +110,23 @@ class DotParser {
         var nodes = [];
         var links = [];
         data === null || data === void 0 ? void 0 : data.forEach(line => {
-            const lineData = line.split(" -> ");
+            var lineData = line.split(" -> ");
             if (lineData[0].includes("do_prepare_recipe_sysroot") && !lineData[0].includes("label") && !lineData[1].includes("do_fetch")) {
                 const recipeName = lineData[0].replace(".do_prepare_recipe_sysroot", "").replace('"', "").replace('"', "").trim();
                 const dependentRecipeName = lineData[1].replace(".do_populate_sysroot", "").replace('"', "").replace('"', "").trim();
                 if (dependentRecipeName !== recipeName) {
                     var source;
                     var target;
-                    const recipeNode = new Node_1.Node(index, recipeName);
                     if (!nodes.some(rn => rn.getName() == recipeName)) {
-                        nodes.push(recipeNode);
+                        nodes.push(new Node_1.Node(index, recipeName));
                         source = index;
                         index++;
                     }
                     else {
                         source = nodes.find(rn => rn.getName() == recipeName).getId();
                     }
-                    const dependentRecipeNode = new Node_1.Node(index, dependentRecipeName);
                     if (!nodes.some(rn => rn.getName() == dependentRecipeName)) {
-                        nodes.push(dependentRecipeNode);
+                        nodes.push(new Node_1.Node(index, dependentRecipeName));
                         target = index;
                         index++;
                     }
@@ -137,6 +135,23 @@ class DotParser {
                     }
                     const link = new Link_1.Link(source, target);
                     links.push(link);
+                }
+            }
+            else if (lineData[0].includes("label=")) {
+                lineData = line.split(" ");
+                var recipeNameData = lineData[0].split(".");
+                var recipeName = recipeNameData[0].replace('"', "").replace('"', "").trim();
+                var label = lineData[2].replace("[", "").replace("]", "").replace("label=", "").replace('"', "").replace('"', "").trim();
+                var labelData = label.split(/\\n|:/);
+                var recipePath = labelData[labelData.length - 1];
+                if (!nodes.some(rn => rn.getName() == recipeName)) {
+                    const node = new Node_1.Node(index, recipeName);
+                    node.setRecipe(recipePath);
+                    nodes.push(node);
+                    index++;
+                }
+                else {
+                    nodes.find(rn => rn.getName() == recipeName).setRecipe(recipePath);
                 }
             }
         });
@@ -507,12 +522,19 @@ class Node {
     constructor(id, name) {
         this.id = id;
         this.name = name;
+        this.recipe = "";
     }
     getId() {
         return this.id;
     }
     getName() {
         return this.name;
+    }
+    getRecipe() {
+        return this.recipe;
+    }
+    setRecipe(recipe) {
+        this.recipe = recipe;
     }
 }
 exports.Node = Node;
@@ -546,18 +568,6 @@ class VisualizationPanel {
         // Listen for when the panel is disposed
         // This happens when the user closes the panel or when the panel is closed programatically
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
-        // // Handle messages from the webview
-        // this._panel.webview.onDidReceiveMessage(
-        //   (message) => {
-        //     switch (message.command) {
-        //       case "alert":
-        //         vscode.window.showErrorMessage(message.text);
-        //         return;
-        //     }
-        //   },
-        //   null,
-        //   this._disposables
-        // );
     }
     static createOrShow(extensionUri) {
         const column = vscode.window.activeTextEditor
@@ -570,7 +580,7 @@ class VisualizationPanel {
             return;
         }
         // Otherwise, create a new panel.
-        const panel = vscode.window.createWebviewPanel(VisualizationPanel.viewType, "Hello", column || vscode.ViewColumn.One, {
+        const panel = vscode.window.createWebviewPanel(VisualizationPanel.viewType, "Visualization", column || vscode.ViewColumn.One, {
             // Enable javascript in the webview
             enableScripts: true,
             // And restrict the webview to only loading content from our extension's `media` directory.
@@ -605,19 +615,15 @@ class VisualizationPanel {
             const webview = this._panel.webview;
             this._panel.webview.html = this._getHtmlForWebview(webview);
             webview.onDidReceiveMessage((data) => __awaiter(this, void 0, void 0, function* () {
-                switch (data.type) {
-                    case "onInfo": {
-                        if (!data.value) {
+                switch (data.command) {
+                    case "open-file": {
+                        console.log("Message: " + data.filename);
+                        if (!data.filename) {
                             return;
                         }
-                        vscode.window.showInformationMessage(data.value);
-                        break;
-                    }
-                    case "onError": {
-                        if (!data.value) {
-                            return;
-                        }
-                        vscode.window.showErrorMessage(data.value);
+                        vscode.window.showInformationMessage(data.filename);
+                        //vscode.window.showTextDocument(data.filename);
+                        vscode.workspace.openTextDocument(data.filename).then(document => vscode.window.showTextDocument(document));
                         break;
                     }
                 }
@@ -670,7 +676,7 @@ class VisualizationPanel {
     }
 }
 exports.VisualizationPanel = VisualizationPanel;
-VisualizationPanel.viewType = "hello";
+VisualizationPanel.viewType = "visualization";
 
 
 /***/ })

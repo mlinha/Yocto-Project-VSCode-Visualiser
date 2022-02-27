@@ -1,7 +1,11 @@
 // This script will be run within the webview itself
 // It cannot access the main VS Code APIs directly.
 
-// @ts-ignore
+/**
+ * @type {any}
+ */
+const vscode = acquireVsCodeApi();
+
 /**
  * @type {any}
  */
@@ -106,6 +110,12 @@ function labelsUpdate() {
     .data(data.nodes)
     .enter()
     .append("text")
+    .on('click', function (d, i) {
+      vscode.postMessage({
+        command: "open-file",
+        filename: d.recipe
+      });
+    });
 
   graph_package_names.style("fill", "red")
     .attr("width", "70")
@@ -208,7 +218,6 @@ function initSimulation() {
 }
 
 (function () {
-  const vscode = acquireVsCodeApi();
   setDimensions();
   initData();
 
