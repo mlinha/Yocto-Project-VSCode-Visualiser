@@ -10,7 +10,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:yocto-project-dependency-visualizer.generateVisualization"
+    "onCommand:yocto-project-dependency-visualizer.generateVisualization",
+    "onView:vizualization-sidebar"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -20,7 +21,27 @@
         "title": "Generate visualization",
         "category": "Yocto Project Dependency Visualizer"
       }
-    ]
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "yocto-project-dependency-visualizer-sidebar-view",
+          "title": "Yocto Project Dependency Visualizer",
+          "icon": ""
+        }
+      ]
+    },
+    "views": {
+      "yocto-project-dependency-visualizer-sidebar-view": [
+        {
+          "type": "webview",
+          "id": "vizualization-sidebar",
+          "name": "Yocto Project Dependency Visualizer",
+          "icon": "",
+          "contextualTitle": "Visualizer"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",

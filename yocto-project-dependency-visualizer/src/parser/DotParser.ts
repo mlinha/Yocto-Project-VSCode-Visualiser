@@ -11,13 +11,13 @@ export class DotParser {
         this.dotPath = dotPath;
     }
 
-    private loadDotFile()  {
+    private loadDotFile() {
         var data;
-    	try {
-    	  data = readFileSync(this.dotPath, "utf8");
-    	} catch (err) {
-    	  console.error(err)
-    	}
+        try {
+            data = readFileSync(this.dotPath, "utf8");
+        } catch (err) {
+            console.error(err)
+        }
 
         return data?.split("\n");
     }
@@ -30,34 +30,28 @@ export class DotParser {
 
         data?.forEach(line => {
             var lineData = line.split(" -> ");
-            if (lineData[0].includes("do_prepare_recipe_sysroot") && !lineData[0].includes("label") && !lineData[1].includes("do_fetch"))
-            {
+            if (lineData[0].includes("do_prepare_recipe_sysroot") && !lineData[0].includes("label") && !lineData[1].includes("do_fetch")) {
                 const recipeName = lineData[0].replace(".do_prepare_recipe_sysroot", "").replace('"', "").replace('"', "").trim();
                 const dependentRecipeName = lineData[1].replace(".do_populate_sysroot", "").replace('"', "").replace('"', "").trim();
-                if (dependentRecipeName !== recipeName)
-                {
+                if (dependentRecipeName !== recipeName) {
                     var source;
                     var target;
 
-                    if (!nodes.some(rn => (rn as Node).getName() == recipeName))
-                    {
+                    if (!nodes.some(rn => (rn as Node).getName() == recipeName)) {
                         nodes.push(new Node(index, recipeName));
                         source = index;
                         index++;
                     }
-                    else
-                    {
+                    else {
                         source = (nodes.find(rn => (rn as Node).getName() == recipeName) as Node).getId();
                     }
 
-                    if (!nodes.some(rn => (rn as Node).getName() == dependentRecipeName))
-                    {
+                    if (!nodes.some(rn => (rn as Node).getName() == dependentRecipeName)) {
                         nodes.push(new Node(index, dependentRecipeName));
                         target = index;
                         index++;
                     }
-                    else
-                    {
+                    else {
                         target = (nodes.find(rn => (rn as Node).getName() == dependentRecipeName) as Node).getId();
                     }
                     const link = new Link(source, target);
@@ -75,8 +69,7 @@ export class DotParser {
                 var labelData = label.split(/\\n|:/);
                 var recipePath = labelData[labelData.length - 1];
 
-                if (!nodes.some(rn => (rn as Node).getName() == recipeName))
-                {
+                if (!nodes.some(rn => (rn as Node).getName() == recipeName)) {
                     const node = new Node(index, recipeName);
                     node.setRecipe(recipePath);
                     nodes.push(node);

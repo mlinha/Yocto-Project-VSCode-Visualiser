@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
+import { Sidebar } from './view/Sidebar';
 import { existsSync, writeFileSync } from 'fs';
 import { DotParser } from './parser/DotParser';
-import { VisualizationPanel } from './panel/VisualizationPanel';
+import { VisualizationPanel } from './view/VisualizationPanel';
 
 function callBitbake(path: string) {
 	// use linux cd
@@ -15,39 +16,39 @@ function callBitbake(path: string) {
 	});
 }
 
+export function createVizualization(extensionUri: vscode.Uri) {
+    if (vscode.workspace.workspaceFolders !== undefined) {
+        const dotPath = vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/task-depends.dot";
+        if (!existsSync(dotPath)) {
+            console.log(vscode.workspace.workspaceFolders[0].uri.fsPath);
+            callBitbake(vscode.workspace.workspaceFolders[0].uri.fsPath);
+        }
+
+        var dotParser = new DotParser(dotPath);
+        var graphString = dotParser.parseDotFile();
+        writeFileSync(vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/graph.json", graphString);
+        VisualizationPanel.graphString = graphString;
+    }
+    
+    VisualizationPanel.createOrShow(extensionUri);
+}
+
 export function activate(context: vscode.ExtensionContext) {
+	const sidebar = new Sidebar(context.extensionUri); 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
-			
-			if (vscode.workspace.workspaceFolders !== undefined) {
-				const dotPath = vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/task-depends.dot";
-				if (!existsSync(dotPath)) {
-					console.log(vscode.workspace.workspaceFolders[0].uri.fsPath);
-					callBitbake(vscode.workspace.workspaceFolders[0].uri.fsPath);
-				}
-
-				var dotParser = new DotParser(dotPath);
-				var graphString = dotParser.parseDotFile();
-				writeFileSync(vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/graph.json", graphString);
-				VisualizationPanel.graphString = graphString;
-			}
-			
-			VisualizationPanel.createOrShow(context.extensionUri);
+			createVizualization(context.extensionUri);
 		})
 	);
+	context.subscriptions.push(
+		vscode.window.registerWebviewViewProvider(
+		  "vizualization-sidebar",
+		  sidebar
+		)
+	  );
 }
 
 export function deactivate() {}
-
-//function getWebviewOptions(extensionUri: vscode.Uri): vscode.WebviewOptions {
-//	return {
-//		// Enable javascript in the webview
-//		enableScripts: true,
-//
-//		// And restrict the webview to only loading content from our extension's `media` directory.
-//		localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
-//	};
-//}
 
 export function getNonce() {
 	let text = '';

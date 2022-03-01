@@ -191,7 +191,7 @@ function simulationTicked() {
 }
 
 function initSvg() {
-  svg = d3.select("#my_dataviz")
+  svg = d3.select("#visualization")
     .append("svg")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)

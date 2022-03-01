@@ -6,9 +6,10 @@
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getNonce = exports.deactivate = exports.activate = void 0;
+exports.getNonce = exports.deactivate = exports.activate = exports.createVizualization = void 0;
 const vscode = __webpack_require__(1);
 const cp = __webpack_require__(2);
+const Sidebar_1 = __webpack_require__(9);
 const fs_1 = __webpack_require__(3);
 const DotParser_1 = __webpack_require__(4);
 const VisualizationPanel_1 = __webpack_require__(8);
@@ -22,34 +23,31 @@ function callBitbake(path) {
         }
     });
 }
-function activate(context) {
-    context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
-        if (vscode.workspace.workspaceFolders !== undefined) {
-            const dotPath = vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/task-depends.dot";
-            if (!(0, fs_1.existsSync)(dotPath)) {
-                console.log(vscode.workspace.workspaceFolders[0].uri.fsPath);
-                callBitbake(vscode.workspace.workspaceFolders[0].uri.fsPath);
-            }
-            var dotParser = new DotParser_1.DotParser(dotPath);
-            var graphString = dotParser.parseDotFile();
-            (0, fs_1.writeFileSync)(vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/graph.json", graphString);
-            VisualizationPanel_1.VisualizationPanel.graphString = graphString;
+function createVizualization(extensionUri) {
+    if (vscode.workspace.workspaceFolders !== undefined) {
+        const dotPath = vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/task-depends.dot";
+        if (!(0, fs_1.existsSync)(dotPath)) {
+            console.log(vscode.workspace.workspaceFolders[0].uri.fsPath);
+            callBitbake(vscode.workspace.workspaceFolders[0].uri.fsPath);
         }
-        VisualizationPanel_1.VisualizationPanel.createOrShow(context.extensionUri);
+        var dotParser = new DotParser_1.DotParser(dotPath);
+        var graphString = dotParser.parseDotFile();
+        (0, fs_1.writeFileSync)(vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/graph.json", graphString);
+        VisualizationPanel_1.VisualizationPanel.graphString = graphString;
+    }
+    VisualizationPanel_1.VisualizationPanel.createOrShow(extensionUri);
+}
+exports.createVizualization = createVizualization;
+function activate(context) {
+    const sidebar = new Sidebar_1.Sidebar(context.extensionUri);
+    context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
+        createVizualization(context.extensionUri);
     }));
+    context.subscriptions.push(vscode.window.registerWebviewViewProvider("vizualization-sidebar", sidebar));
 }
 exports.activate = activate;
 function deactivate() { }
 exports.deactivate = deactivate;
-//function getWebviewOptions(extensionUri: vscode.Uri): vscode.WebviewOptions {
-//	return {
-//		// Enable javascript in the webview
-//		enableScripts: true,
-//
-//		// And restrict the webview to only loading content from our extension's `media` directory.
-//		localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
-//	};
-//}
 function getNonce() {
     let text = '';
     const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -583,6 +581,7 @@ class VisualizationPanel {
         const panel = vscode.window.createWebviewPanel(VisualizationPanel.viewType, "Visualization", column || vscode.ViewColumn.One, {
             // Enable javascript in the webview
             enableScripts: true,
+            retainContextWhenHidden: true,
             // And restrict the webview to only loading content from our extension's `media` directory.
             localResourceRoots: [
                 vscode.Uri.joinPath(extensionUri, "media"),
@@ -622,8 +621,17 @@ class VisualizationPanel {
                             return;
                         }
                         vscode.window.showInformationMessage(data.filename);
-                        //vscode.window.showTextDocument(data.filename);
-                        vscode.workspace.openTextDocument(data.filename).then(document => vscode.window.showTextDocument(document));
+                        var recipePath = "data.filename";
+                        if (vscode.workspace.workspaceFolders !== undefined) {
+                            const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
+                            if (workspacePath.includes("wsl")) {
+                                const pathData = workspacePath.replace("\\\\", "").split("\\");
+                                console.log(pathData);
+                                recipePath = "\\\\" + pathData[0] + "\\" + pathData[1] + "\\" + data.filename.replace("/", "\\");
+                                console.log(recipePath);
+                            }
+                        }
+                        vscode.workspace.openTextDocument(recipePath).then(document => vscode.window.showTextDocument(document));
                         break;
                     }
                 }
@@ -632,7 +640,7 @@ class VisualizationPanel {
     }
     _getHtmlForWebview(webview) {
         // // And the uri we use to load this script in the webview
-        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "main.js"));
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "visualization.js"));
         // Local path to css styles
         // Uri to load styles into webview
         const stylesResetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "reset.css"));
@@ -650,33 +658,108 @@ class VisualizationPanel {
 				<!--
 					Use a content security policy to only allow loading images from https or from our extension directory,
 					and only allow scripts that have a specific nonce.
-        -->
-        <meta http-equiv="Content-Security-Policy" content="img-src https: data:; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
+                -->
+                <meta http-equiv="Content-Security-Policy" content="img-src https: data:; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
 				<link href="${stylesMainUri}" rel="stylesheet">
 				<link href="${stylesResetUri}" rel="stylesheet">
-        <link href="" rel="stylesheet">
-        <script nonce="${nonce}">
-        </script>
+                <script nonce="${nonce}"> </script>
 			</head>
-      <body>
-      <h1>hello</h1>
-      <div class="chart"></div>
-      <svg id="Viz_area" height=200 width=450></svg>
-      <input type="hidden" id="graph" name="graph" value='${VisualizationPanel.graphString}''>
-      <script src="https://d3js.org/d3.v4.min.js" nonce="${nonce}"></script>
-      <script src="http://viz-js.com/bower_components/viz.js/viz-lite.js" nonce="${nonce}"></script>
-      <div id="my_dataviz"></div>
-      <script src="${scriptUri}" type="module" nonce="${nonce}"></script>
-      <script nonce="${nonce}">
-        
-      </script>
+            <body>
+                <div class="chart">
+                    <div id="visualization"></div>
+                    <input type="hidden" id="graph" name="graph" value='${VisualizationPanel.graphString}''>
+                    <script src="https://d3js.org/d3.v4.min.js" nonce="${nonce}"></script>
+                    <script src="http://viz-js.com/bower_components/viz.js/viz-lite.js" nonce="${nonce}"></script>
+                    <script src="${scriptUri}" type="module" nonce="${nonce}"></script>
+                    <script nonce="${nonce}"></script>
+                </div>
 			</body>
 			</html>`;
     }
 }
 exports.VisualizationPanel = VisualizationPanel;
 VisualizationPanel.viewType = "visualization";
+
+
+/***/ }),
+/* 9 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Sidebar = void 0;
+const vscode = __webpack_require__(1);
+const extension_1 = __webpack_require__(0);
+class Sidebar {
+    constructor(_extensionUri) {
+        this._extensionUri = _extensionUri;
+    }
+    revive(panel) {
+        this._view = panel;
+    }
+    resolveWebviewView(webviewView, context, token) {
+        this._view = webviewView;
+        webviewView.webview.options = {
+            // Allow scripts in the webview
+            enableScripts: true,
+            localResourceRoots: [this._extensionUri],
+        };
+        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+        webviewView.webview.onDidReceiveMessage((data) => __awaiter(this, void 0, void 0, function* () {
+            switch (data.command) {
+                case "visualize": {
+                    (0, extension_1.createVizualization)(this._extensionUri);
+                }
+            }
+        }));
+    }
+    _getHtmlForWebview(webview) {
+        // // And the uri we use to load this script in the webview
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "sidebar.js"));
+        // Local path to css styles
+        // Uri to load styles into webview
+        const stylesResetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "reset.css"));
+        const stylesMainUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "vscode.css"));
+        //const cssUri = webview.asWebviewUri(
+        //  vscode.Uri.joinPath(this._extensionUri, "out", "compiled/hello.css")
+        //);
+        //
+        //// Use a nonce to only allow specific scripts to be run
+        const nonce = (0, extension_1.getNonce)();
+        return `<!DOCTYPE html>
+			<html lang="en">
+			<head>
+				<meta charset="UTF-8">
+				<!--
+					Use a content security policy to only allow loading images from https or from our extension directory,
+					and only allow scripts that have a specific nonce.
+                -->
+                <meta http-equiv="Content-Security-Policy" content="img-src https: data:; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
+				<meta name="viewport" content="width=device-width, initial-scale=1.0">
+				<link href="${stylesMainUri}" rel="stylesheet">
+				<link href="${stylesResetUri}" rel="stylesheet">
+                <script nonce="${nonce}"> </script>
+			</head>
+            <body>
+                <div class="menu">
+                    <button type="button" id="generate">Click Me!</button>
+                    <script src="${scriptUri}" type="module" nonce="${nonce}"></script>
+                <div>
+			</body>
+			</html>`;
+    }
+}
+exports.Sidebar = Sidebar;
 
 
 /***/ })
