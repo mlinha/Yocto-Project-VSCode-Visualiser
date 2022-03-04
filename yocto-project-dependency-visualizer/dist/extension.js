@@ -6,13 +6,42 @@
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getNonce = exports.deactivate = exports.activate = exports.createVizualization = void 0;
+exports.removeNodeFromTree = exports.addNodeToTree = exports.createVizualization = exports.getNonce = exports.deactivate = exports.activate = void 0;
 const vscode = __webpack_require__(1);
 const cp = __webpack_require__(2);
-const Sidebar_1 = __webpack_require__(9);
-const fs_1 = __webpack_require__(3);
-const DotParser_1 = __webpack_require__(4);
-const VisualizationPanel_1 = __webpack_require__(8);
+const Sidebar_1 = __webpack_require__(3);
+const fs_1 = __webpack_require__(4);
+const DotParser_1 = __webpack_require__(5);
+const VisualizationPanel_1 = __webpack_require__(9);
+const RecipeTreeDataProvider_1 = __webpack_require__(10);
+var treeDataProvider;
+function activate(context) {
+    const sidebar = new Sidebar_1.Sidebar(context.extensionUri);
+    treeDataProvider = new RecipeTreeDataProvider_1.Provv();
+    context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
+        createVizualization(context.extensionUri);
+    }));
+    context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.returnNode', (item) => {
+        var _a, _b;
+        if (((_a = item.label) === null || _a === void 0 ? void 0 : _a.toString()) !== undefined) {
+            removeNodeFromTree((_b = item.label) === null || _b === void 0 ? void 0 : _b.toString());
+        }
+    }));
+    context.subscriptions.push(vscode.window.registerWebviewViewProvider("visualization-sidebar", sidebar));
+    context.subscriptions.push(vscode.window.registerTreeDataProvider("visualization-list", treeDataProvider));
+}
+exports.activate = activate;
+function deactivate() { }
+exports.deactivate = deactivate;
+function getNonce() {
+    let text = '';
+    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    for (let i = 0; i < 32; i++) {
+        text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
+}
+exports.getNonce = getNonce;
 function callBitbake(path) {
     // use linux cd
     cp.exec('pushd' + path + " && dir", (err, stdout, stderr) => {
@@ -35,28 +64,27 @@ function createVizualization(extensionUri) {
         (0, fs_1.writeFileSync)(vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/graph.json", graphString);
         VisualizationPanel_1.VisualizationPanel.graphString = graphString;
     }
+    treeDataProvider.clearAllNodes();
+    treeDataProvider.refresh();
+    VisualizationPanel_1.VisualizationPanel.kill();
     VisualizationPanel_1.VisualizationPanel.createOrShow(extensionUri);
 }
 exports.createVizualization = createVizualization;
-function activate(context) {
-    const sidebar = new Sidebar_1.Sidebar(context.extensionUri);
-    context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
-        createVizualization(context.extensionUri);
-    }));
-    context.subscriptions.push(vscode.window.registerWebviewViewProvider("vizualization-sidebar", sidebar));
+function addNodeToTree(name) {
+    treeDataProvider.addNode(name);
+    treeDataProvider.refresh();
 }
-exports.activate = activate;
-function deactivate() { }
-exports.deactivate = deactivate;
-function getNonce() {
-    let text = '';
-    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    for (let i = 0; i < 32; i++) {
-        text += possible.charAt(Math.floor(Math.random() * possible.length));
-    }
-    return text;
+exports.addNodeToTree = addNodeToTree;
+function removeNodeFromTree(name) {
+    var _a;
+    treeDataProvider.removeNode(name);
+    treeDataProvider.refresh();
+    (_a = VisualizationPanel_1.VisualizationPanel.currentPanel) === null || _a === void 0 ? void 0 : _a.getWebView().postMessage({
+        command: "return-node",
+        name: "name"
+    });
 }
-exports.getNonce = getNonce;
+exports.removeNodeFromTree = removeNodeFromTree;
 
 
 /***/ }),
@@ -73,21 +101,101 @@ module.exports = require("child_process");
 
 /***/ }),
 /* 3 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Sidebar = void 0;
+const vscode = __webpack_require__(1);
+const extension_1 = __webpack_require__(0);
+class Sidebar {
+    constructor(_extensionUri) {
+        this._extensionUri = _extensionUri;
+    }
+    revive(panel) {
+        this._view = panel;
+    }
+    resolveWebviewView(webviewView, context, token) {
+        this._view = webviewView;
+        webviewView.webview.options = {
+            // Allow scripts in the webview
+            enableScripts: true,
+            localResourceRoots: [this._extensionUri],
+        };
+        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+        webviewView.webview.onDidReceiveMessage((data) => __awaiter(this, void 0, void 0, function* () {
+            switch (data.command) {
+                case "visualize": {
+                    (0, extension_1.createVizualization)(this._extensionUri);
+                }
+            }
+        }));
+    }
+    _getHtmlForWebview(webview) {
+        // // And the uri we use to load this script in the webview
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "sidebar.js"));
+        // Local path to css styles
+        // Uri to load styles into webview
+        const stylesResetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "reset.css"));
+        const stylesMainUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "vscode.css"));
+        //const cssUri = webview.asWebviewUri(
+        //  vscode.Uri.joinPath(this._extensionUri, "out", "compiled/hello.css")
+        //);
+        //
+        //// Use a nonce to only allow specific scripts to be run
+        const nonce = (0, extension_1.getNonce)();
+        return `<!DOCTYPE html>
+			<html lang="en">
+			<head>
+				<meta charset="UTF-8">
+				<!--
+					Use a content security policy to only allow loading images from https or from our extension directory,
+					and only allow scripts that have a specific nonce.
+                -->
+                <meta http-equiv="Content-Security-Policy" content="img-src https: data:; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
+				<meta name="viewport" content="width=device-width, initial-scale=1.0">
+				<link href="${stylesMainUri}" rel="stylesheet">
+				<link href="${stylesResetUri}" rel="stylesheet">
+                <script nonce="${nonce}"> </script>
+			</head>
+            <body>
+                <div class="menu">
+                    <button type="button" id="generate">Visualize</button>
+                    <script src="${scriptUri}" type="module" nonce="${nonce}"></script>
+                <div>
+			</body>
+			</html>`;
+    }
+}
+exports.Sidebar = Sidebar;
+
+
+/***/ }),
+/* 4 */
 /***/ ((module) => {
 
 module.exports = require("fs");
 
 /***/ }),
-/* 4 */
+/* 5 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DotParser = void 0;
-const fs_1 = __webpack_require__(3);
-const typescript_map_1 = __webpack_require__(5);
-const Link_1 = __webpack_require__(6);
-const Node_1 = __webpack_require__(7);
+const fs_1 = __webpack_require__(4);
+const typescript_map_1 = __webpack_require__(6);
+const Link_1 = __webpack_require__(7);
+const Node_1 = __webpack_require__(8);
 class DotParser {
     constructor(dotPath) {
         this.dotPath = dotPath;
@@ -163,7 +271,7 @@ exports.DotParser = DotParser;
 
 
 /***/ }),
-/* 5 */
+/* 6 */
 /***/ (function(__unused_webpack_module, exports) {
 
 
@@ -488,7 +596,7 @@ exports.TSMap = TSMap;
 
 
 /***/ }),
-/* 6 */
+/* 7 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -507,7 +615,7 @@ exports.Link = Link;
 
 
 /***/ }),
-/* 7 */
+/* 8 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -539,7 +647,7 @@ exports.Node = Node;
 
 
 /***/ }),
-/* 8 */
+/* 9 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -615,7 +723,7 @@ class VisualizationPanel {
             this._panel.webview.html = this._getHtmlForWebview(webview);
             webview.onDidReceiveMessage((data) => __awaiter(this, void 0, void 0, function* () {
                 switch (data.command) {
-                    case "open-file": {
+                    case "open-recipe-file": {
                         console.log("Message: " + data.filename);
                         if (!data.filename) {
                             return;
@@ -634,9 +742,21 @@ class VisualizationPanel {
                         vscode.workspace.openTextDocument(recipePath).then(document => vscode.window.showTextDocument(document));
                         break;
                     }
+                    case "remove-node": {
+                        console.log("Name: " + data.name);
+                        if (!data.name) {
+                            return;
+                        }
+                        vscode.window.showInformationMessage(data.name);
+                        (0, extension_1.addNodeToTree)(data.name);
+                        break;
+                    }
                 }
             }));
         });
+    }
+    getWebView() {
+        return this._panel.webview;
     }
     _getHtmlForWebview(webview) {
         // // And the uri we use to load this script in the webview
@@ -683,83 +803,52 @@ VisualizationPanel.viewType = "visualization";
 
 
 /***/ }),
-/* 9 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/* 10 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Sidebar = void 0;
+exports.NodeTreeItem = exports.Provv = void 0;
 const vscode = __webpack_require__(1);
-const extension_1 = __webpack_require__(0);
-class Sidebar {
-    constructor(_extensionUri) {
-        this._extensionUri = _extensionUri;
+class Provv {
+    constructor() {
+        this._onDidChangeTreeData = new vscode.EventEmitter();
+        this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+        this.data = [];
     }
-    revive(panel) {
-        this._view = panel;
+    refresh() {
+        this._onDidChangeTreeData.fire();
     }
-    resolveWebviewView(webviewView, context, token) {
-        this._view = webviewView;
-        webviewView.webview.options = {
-            // Allow scripts in the webview
-            enableScripts: true,
-            localResourceRoots: [this._extensionUri],
-        };
-        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
-        webviewView.webview.onDidReceiveMessage((data) => __awaiter(this, void 0, void 0, function* () {
-            switch (data.command) {
-                case "visualize": {
-                    (0, extension_1.createVizualization)(this._extensionUri);
-                }
-            }
-        }));
+    getTreeItem(element) {
+        return element;
     }
-    _getHtmlForWebview(webview) {
-        // // And the uri we use to load this script in the webview
-        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "sidebar.js"));
-        // Local path to css styles
-        // Uri to load styles into webview
-        const stylesResetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "reset.css"));
-        const stylesMainUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "vscode.css"));
-        //const cssUri = webview.asWebviewUri(
-        //  vscode.Uri.joinPath(this._extensionUri, "out", "compiled/hello.css")
-        //);
-        //
-        //// Use a nonce to only allow specific scripts to be run
-        const nonce = (0, extension_1.getNonce)();
-        return `<!DOCTYPE html>
-			<html lang="en">
-			<head>
-				<meta charset="UTF-8">
-				<!--
-					Use a content security policy to only allow loading images from https or from our extension directory,
-					and only allow scripts that have a specific nonce.
-                -->
-                <meta http-equiv="Content-Security-Policy" content="img-src https: data:; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
-				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<link href="${stylesMainUri}" rel="stylesheet">
-				<link href="${stylesResetUri}" rel="stylesheet">
-                <script nonce="${nonce}"> </script>
-			</head>
-            <body>
-                <div class="menu">
-                    <button type="button" id="generate">Click Me!</button>
-                    <script src="${scriptUri}" type="module" nonce="${nonce}"></script>
-                <div>
-			</body>
-			</html>`;
+    getChildren(element) {
+        if (element === undefined) {
+            return this.data;
+        }
+        return element.children;
+    }
+    addNode(label) {
+        this.data.push(new NodeTreeItem(label));
+        console.log(this.data);
+    }
+    removeNode(label) {
+        var index = this.data.findIndex((node) => node.label === label);
+        this.data.splice(index, 1);
+    }
+    clearAllNodes() {
+        this.data = [];
     }
 }
-exports.Sidebar = Sidebar;
+exports.Provv = Provv;
+class NodeTreeItem extends vscode.TreeItem {
+    constructor(label, children) {
+        super(label, vscode.TreeItemCollapsibleState.None);
+        this.children = children;
+        this.contextValue = "YOUR_CONTEXT";
+    }
+}
+exports.NodeTreeItem = NodeTreeItem;
 
 
 /***/ })

@@ -4,6 +4,49 @@ import { Sidebar } from './view/Sidebar';
 import { existsSync, writeFileSync } from 'fs';
 import { DotParser } from './parser/DotParser';
 import { VisualizationPanel } from './view/VisualizationPanel';
+import { NodeTreeItem, Provv } from "./view/RecipeTreeDataProvider" 
+
+var treeDataProvider: Provv;
+
+export function activate(context: vscode.ExtensionContext) {
+	const sidebar = new Sidebar(context.extensionUri);
+	treeDataProvider = new Provv();
+	context.subscriptions.push(
+		vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
+			createVizualization(context.extensionUri);
+		})
+	);
+	context.subscriptions.push(
+		vscode.commands.registerCommand('yocto-project-dependency-visualizer.returnNode', (item: NodeTreeItem) => {
+			if (item.label?.toString() !== undefined) {
+				removeNodeFromTree(item.label?.toString());
+			}
+		})
+	);
+	context.subscriptions.push(
+		vscode.window.registerWebviewViewProvider(
+		  "visualization-sidebar",
+		  sidebar
+		)
+	);
+	context.subscriptions.push(
+		vscode.window.registerTreeDataProvider(
+			"visualization-list",
+			treeDataProvider
+		  )
+	);
+}
+
+export function deactivate() {}
+
+export function getNonce() {
+	let text = '';
+	const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+	for (let i = 0; i < 32; i++) {
+		text += possible.charAt(Math.floor(Math.random() * possible.length));
+	}
+	return text;
+}
 
 function callBitbake(path: string) {
 	// use linux cd
@@ -30,31 +73,22 @@ export function createVizualization(extensionUri: vscode.Uri) {
         VisualizationPanel.graphString = graphString;
     }
     
+	treeDataProvider.clearAllNodes();
+	treeDataProvider.refresh();
+	VisualizationPanel.kill();
     VisualizationPanel.createOrShow(extensionUri);
 }
 
-export function activate(context: vscode.ExtensionContext) {
-	const sidebar = new Sidebar(context.extensionUri); 
-	context.subscriptions.push(
-		vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
-			createVizualization(context.extensionUri);
-		})
-	);
-	context.subscriptions.push(
-		vscode.window.registerWebviewViewProvider(
-		  "vizualization-sidebar",
-		  sidebar
-		)
-	  );
+export function addNodeToTree(name: string) {
+	treeDataProvider.addNode(name);
+	treeDataProvider.refresh();
 }
 
-export function deactivate() {}
-
-export function getNonce() {
-	let text = '';
-	const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-	for (let i = 0; i < 32; i++) {
-		text += possible.charAt(Math.floor(Math.random() * possible.length));
-	}
-	return text;
+export function removeNodeFromTree(name: string) {
+	treeDataProvider.removeNode(name);
+	treeDataProvider.refresh();
+	VisualizationPanel.currentPanel?.getWebView().postMessage({
+		command: "return-node",
+		name: "name"
+	});
 }

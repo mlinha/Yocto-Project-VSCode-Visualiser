@@ -11,7 +11,7 @@
   ],
   "activationEvents": [
     "onCommand:yocto-project-dependency-visualizer.generateVisualization",
-    "onView:vizualization-sidebar"
+    "onView:visualization-sidebar"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -19,6 +19,11 @@
       {
         "command": "yocto-project-dependency-visualizer.generateVisualization",
         "title": "Generate visualization",
+        "category": "Yocto Project Dependency Visualizer"
+      },
+      {
+        "command": "yocto-project-dependency-visualizer.returnNode",
+        "title": "Return to visualization",
         "category": "Yocto Project Dependency Visualizer"
       }
     ],
@@ -35,10 +40,22 @@
       "yocto-project-dependency-visualizer-sidebar-view": [
         {
           "type": "webview",
-          "id": "vizualization-sidebar",
-          "name": "Yocto Project Dependency Visualizer",
+          "id": "visualization-sidebar",
+          "name": "Visualization generator",
           "icon": "",
           "contextualTitle": "Visualizer"
+        },
+        {
+          "id": "visualization-list",
+          "name": "Removed nodes"
+        }
+      ]
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "yocto-project-dependency-visualizer.returnNode",
+          "when": "viewItem == YOUR_CONTEXT"
         }
       ]
     }

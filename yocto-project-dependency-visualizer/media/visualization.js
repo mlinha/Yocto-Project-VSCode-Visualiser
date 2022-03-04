@@ -112,7 +112,7 @@ function labelsUpdate() {
     .append("text")
     .on('click', function (d, i) {
       vscode.postMessage({
-        command: "open-file",
+        command: "open-recipe-file",
         filename: d.recipe
       });
     });
@@ -157,7 +157,14 @@ function deleteNode(i) {
   svg.selectAll("text").remove();
   var id = data.nodes[i].id;
 
-  removedNodes.push(data.nodes.splice(i, 1));
+  var removedNode = data.nodes.splice(i, 1)[0];
+  console.log(removedNode);
+  vscode.postMessage({
+    command: "remove-node",
+    name: removedNode.name
+  });
+
+  removedNodes.push(removedNode);
 
   data.links = data.links.filter(function (/** @type {{ source: { id: any; }; target: { id: any; }; }} */ l) {
     if (l.source.id === id || l.target.id === id) {
@@ -168,6 +175,31 @@ function deleteNode(i) {
 
   console.log(removedNodes);
   console.log(removedLinks);
+
+  linksUpdate();
+  nodesUpdate();
+
+  simulation.restart();
+}
+
+/**
+ * @param {string} name
+ */
+function returnNode(name) {
+  svg.selectAll("line").remove();
+  svg.selectAll("rect").remove();
+  svg.selectAll("text").remove();
+  
+  var index = removedNodes.findIndex((node) => node.name === name);
+  var returnedNode = removedNodes.splice(index, 1)[0];
+  data.nodes.push(returnedNode);
+
+  removedLinks = removedLinks.filter(function (/** @type {{ source: { id: any; }; target: { id: any; }; }} */ l) {
+    if (l.source.id === returnedNode.id || l.target.id === returnedNode.id) {
+      data.links.push(l);
+    }
+    return l.source.id !== returnedNode.id && l.target.id !== returnedNode.id;
+  });
 
   linksUpdate();
   nodesUpdate();
@@ -231,4 +263,15 @@ function initSimulation() {
     nodesUpdate();
     initSimulation();
   }
+
+  window.addEventListener('message', event => {
+
+    const data = event.data; // The JSON data our extension sent
+
+    switch (data.command) {
+        case 'return-node':
+            returnNode(data.name);
+            break;
+    }
+});
 }());

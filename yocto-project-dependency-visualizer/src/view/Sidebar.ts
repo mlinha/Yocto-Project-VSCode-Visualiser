@@ -80,7 +80,7 @@ export class Sidebar implements vscode.WebviewViewProvider {
 			</head>
             <body>
                 <div class="menu">
-                    <button type="button" id="generate">Click Me!</button>
+                    <button type="button" id="generate">Visualize</button>
                     <script src="${scriptUri}" type="module" nonce="${nonce}"></script>
                 <div>
 			</body>

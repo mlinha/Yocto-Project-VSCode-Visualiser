@@ -1,7 +1,7 @@
 import { tree } from "d3";
 import { readFileSync } from "fs";
 import * as vscode from "vscode";
-import { getNonce } from "../extension";
+import { addNodeToTree, getNonce } from "../extension";
 
 export class VisualizationPanel {
     /**
@@ -90,10 +90,10 @@ export class VisualizationPanel {
         const webview = this._panel.webview;
 
         this._panel.webview.html = this._getHtmlForWebview(webview);
-
+        
         webview.onDidReceiveMessage(async (data) => {
             switch (data.command) {
-                case "open-file": {
+                case "open-recipe-file": {
                     console.log("Message: " + data.filename)
                     if (!data.filename) {
                         return;
@@ -117,8 +117,23 @@ export class VisualizationPanel {
 
                     break;
                 }
+                case "remove-node": {
+                    console.log("Name: " + data.name)
+                    if (!data.name) {
+                        return;
+                    }
+                    vscode.window.showInformationMessage(data.name);
+
+                    addNodeToTree(data.name);
+
+                    break;
+                }
             }
         });
+    }
+
+    public getWebView() {
+        return this._panel.webview;
     }
 
     private _getHtmlForWebview(webview: vscode.Webview) {
