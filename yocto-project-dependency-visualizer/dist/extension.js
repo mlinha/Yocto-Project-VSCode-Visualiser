@@ -6,7 +6,7 @@
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.removeNodeFromTree = exports.addNodeToTree = exports.createVizualization = exports.getNonce = exports.deactivate = exports.activate = void 0;
+exports.selectNode = exports.removeNodeFromTree = exports.addNodeToTree = exports.createVizualization = exports.getNonce = exports.deactivate = exports.activate = void 0;
 const vscode = __webpack_require__(1);
 const cp = __webpack_require__(2);
 const Sidebar_1 = __webpack_require__(3);
@@ -15,8 +15,9 @@ const DotParser_1 = __webpack_require__(5);
 const VisualizationPanel_1 = __webpack_require__(9);
 const RecipeTreeDataProvider_1 = __webpack_require__(10);
 var treeDataProvider;
+var sidebar;
 function activate(context) {
-    const sidebar = new Sidebar_1.Sidebar(context.extensionUri);
+    sidebar = new Sidebar_1.Sidebar(context.extensionUri);
     treeDataProvider = new RecipeTreeDataProvider_1.Provv();
     context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
         createVizualization(context.extensionUri);
@@ -67,12 +68,18 @@ function createVizualization(extensionUri) {
     treeDataProvider.clearAllNodes();
     treeDataProvider.refresh();
     VisualizationPanel_1.VisualizationPanel.kill();
+    sidebar.clearSelectedNode();
     VisualizationPanel_1.VisualizationPanel.createOrShow(extensionUri);
 }
 exports.createVizualization = createVizualization;
-function addNodeToTree(name) {
+function addNodeToTree(name, id) {
+    var _a;
     treeDataProvider.addNode(name);
     treeDataProvider.refresh();
+    (_a = VisualizationPanel_1.VisualizationPanel.currentPanel) === null || _a === void 0 ? void 0 : _a.getWebView().postMessage({
+        command: "remove-node",
+        list_id: id
+    });
 }
 exports.addNodeToTree = addNodeToTree;
 function removeNodeFromTree(name) {
@@ -85,6 +92,10 @@ function removeNodeFromTree(name) {
     });
 }
 exports.removeNodeFromTree = removeNodeFromTree;
+function selectNode(node) {
+    sidebar.selectNode(node);
+}
+exports.selectNode = selectNode;
 
 
 /***/ }),
@@ -120,6 +131,7 @@ const extension_1 = __webpack_require__(0);
 class Sidebar {
     constructor(_extensionUri) {
         this._extensionUri = _extensionUri;
+        this.selectedNode = null;
     }
     revive(panel) {
         this._view = panel;
@@ -134,11 +146,55 @@ class Sidebar {
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
         webviewView.webview.onDidReceiveMessage((data) => __awaiter(this, void 0, void 0, function* () {
             switch (data.command) {
-                case "visualize": {
+                case "visualize-s": {
                     (0, extension_1.createVizualization)(this._extensionUri);
+                    break;
+                }
+                case "remove-selected-s": {
+                    if (this.selectedNode === null) {
+                        vscode.window.showInformationMessage("No node selected!");
+                        return;
+                    }
+                    (0, extension_1.addNodeToTree)(this.selectedNode.getName(), this.selectedNode.getId());
+                    this.clearSelectedNode();
+                    break;
+                }
+                case "open-selected-recipe-s": {
+                    if (this.selectedNode === null) {
+                        vscode.window.showInformationMessage("No node selected!");
+                        return;
+                    }
+                    var recipePath = this.selectedNode.getRecipe();
+                    if (vscode.workspace.workspaceFolders !== undefined) {
+                        const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
+                        if (workspacePath.includes("wsl")) {
+                            const pathData = workspacePath.replace("\\\\", "").split("\\");
+                            console.log(pathData);
+                            recipePath = "\\\\" + pathData[0] + "\\" + pathData[1] + "\\" + this.selectedNode.getRecipe().replace("/", "\\");
+                            console.log(recipePath);
+                        }
+                    }
+                    console.log(recipePath);
+                    vscode.workspace.openTextDocument(recipePath).then(document => vscode.window.showTextDocument(document));
+                    break;
                 }
             }
         }));
+    }
+    selectNode(node) {
+        var _a;
+        this.selectedNode = node;
+        (_a = this._view) === null || _a === void 0 ? void 0 : _a.webview.postMessage({
+            command: "select-node-s",
+            name: node.getName()
+        });
+    }
+    clearSelectedNode() {
+        var _a;
+        this.selectedNode = null;
+        (_a = this._view) === null || _a === void 0 ? void 0 : _a.webview.postMessage({
+            command: "clear-selected-node-s",
+        });
     }
     _getHtmlForWebview(webview) {
         // // And the uri we use to load this script in the webview
@@ -170,6 +226,12 @@ class Sidebar {
             <body>
                 <div class="menu">
                     <button type="button" id="generate">Visualize</button>
+                    <hr>
+                    <h4>Selected node:</h4>
+                    <div id="selected-name" style="color:green">-none-</div>
+                    <br>
+                    <button type="button" id="remove-selected">Remove</button>
+                    <button type="button" id="open-recipe">Open recipe</button>
                     <script src="${scriptUri}" type="module" nonce="${nonce}"></script>
                 <div>
 			</body>
@@ -664,6 +726,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationPanel = void 0;
 const vscode = __webpack_require__(1);
 const extension_1 = __webpack_require__(0);
+const Node_1 = __webpack_require__(8);
 class VisualizationPanel {
     constructor(panel, extensionUri) {
         this._disposables = [];
@@ -742,13 +805,15 @@ class VisualizationPanel {
                         vscode.workspace.openTextDocument(recipePath).then(document => vscode.window.showTextDocument(document));
                         break;
                     }
-                    case "remove-node": {
+                    case "select-node-v": {
                         console.log("Name: " + data.name);
                         if (!data.name) {
                             return;
                         }
                         vscode.window.showInformationMessage(data.name);
-                        (0, extension_1.addNodeToTree)(data.name);
+                        var selectedNode = new Node_1.Node(data.list_id, data.name);
+                        selectedNode.setRecipe(data.recipe);
+                        (0, extension_1.selectNode)(selectedNode);
                         break;
                     }
                 }

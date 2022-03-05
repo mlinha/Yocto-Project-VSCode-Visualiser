@@ -5,11 +5,13 @@ import { existsSync, writeFileSync } from 'fs';
 import { DotParser } from './parser/DotParser';
 import { VisualizationPanel } from './view/VisualizationPanel';
 import { NodeTreeItem, Provv } from "./view/RecipeTreeDataProvider" 
+import { Node } from './parser/Node';
 
 var treeDataProvider: Provv;
+var sidebar: Sidebar;
 
 export function activate(context: vscode.ExtensionContext) {
-	const sidebar = new Sidebar(context.extensionUri);
+	sidebar = new Sidebar(context.extensionUri);
 	treeDataProvider = new Provv();
 	context.subscriptions.push(
 		vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
@@ -76,12 +78,19 @@ export function createVizualization(extensionUri: vscode.Uri) {
 	treeDataProvider.clearAllNodes();
 	treeDataProvider.refresh();
 	VisualizationPanel.kill();
+
+	sidebar.clearSelectedNode();
+
     VisualizationPanel.createOrShow(extensionUri);
 }
 
-export function addNodeToTree(name: string) {
+export function addNodeToTree(name: string, id: number) {
 	treeDataProvider.addNode(name);
 	treeDataProvider.refresh();
+	VisualizationPanel.currentPanel?.getWebView().postMessage({
+		command: "remove-node",
+		list_id: id 
+	});
 }
 
 export function removeNodeFromTree(name: string) {
@@ -91,4 +100,8 @@ export function removeNodeFromTree(name: string) {
 		command: "return-node",
 		name: "name"
 	});
+}
+
+export function selectNode(node: Node) {
+	sidebar.selectNode(node);
 }

@@ -4,6 +4,7 @@
 /**
  * @type {any}
  */
+// @ts-ignore
 const vscode = acquireVsCodeApi();
 
 /**
@@ -93,7 +94,8 @@ function nodesUpdate() {
     .attr('height', 30)
     .style("stroke", "cyan")
     .on('click', function (d, i) {
-      deleteNode(i);
+      //deleteNode(i);
+      selectNode(i);
     });
 
   labelsUpdate();
@@ -149,7 +151,23 @@ function arrowInit() {
 }
 
 /**
-* @param {string | number} i
+* @param {number} i
+*/
+function selectNode(i) {
+  //var selectedNameElement = document.getElementById("selected-name");
+  //console.log(selectedNameElement);
+  //selectedNameElement?.replaceChildren(document.createTextNode(data.nodes[i].name));
+  //selectedNameElement?.appendChild(document.createTextNode(data.nodes[i].name));
+  vscode.postMessage({
+    command: "select-node-v",
+    name: data.nodes[i].name,
+    list_id: i,
+    recipe: data.nodes[i].recipe
+  });
+}
+
+/**
+* @param {number} i
 */
 function deleteNode(i) {
   svg.selectAll("line").remove();
@@ -189,7 +207,7 @@ function returnNode(name) {
   svg.selectAll("line").remove();
   svg.selectAll("rect").remove();
   svg.selectAll("text").remove();
-  
+
   var index = removedNodes.findIndex((node) => node.name === name);
   var returnedNode = removedNodes.splice(index, 1)[0];
   data.nodes.push(returnedNode);
@@ -269,9 +287,11 @@ function initSimulation() {
     const data = event.data; // The JSON data our extension sent
 
     switch (data.command) {
-        case 'return-node':
-            returnNode(data.name);
-            break;
+      case "return-node":
+        returnNode(data.name);
+        break;
+      case "remove-node":
+        deleteNode(data.list_id)
     }
-});
+  });
 }());
