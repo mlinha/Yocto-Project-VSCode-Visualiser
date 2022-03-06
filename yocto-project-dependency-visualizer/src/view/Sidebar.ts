@@ -45,7 +45,7 @@ export class Sidebar implements vscode.WebviewViewProvider {
                         return;
                     }
 
-                    addNodeToTree(this.selectedNode.getName(), this.selectedNode.getId());
+                    addNodeToTree(this.selectedNode.getName(), this.selectedNode.getRecipe(), this.selectedNode.getId());
                     this.clearSelectedNode();
 
                     break;
@@ -83,7 +83,8 @@ export class Sidebar implements vscode.WebviewViewProvider {
         this.selectedNode = node;
         this._view?.webview.postMessage({
             command: "select-node-s",
-            name: node.getName()
+            name: node.getName(),
+            recipe: node.getRecipe()
         });
     }
 
@@ -139,8 +140,11 @@ export class Sidebar implements vscode.WebviewViewProvider {
                 <div class="menu">
                     <button type="button" id="generate">Visualize</button>
                     <hr>
-                    <h4>Selected node:</h4>
+                    <h3>Selected node:</h3>
+                    <h4>Name:</h4>
                     <div id="selected-name" style="color:green">-none-</div>
+                    <h4>Recipe:</h4>
+                    <div id="selected-recipe" style="color:green">-none-</div>
                     <br>
                     <button type="button" id="remove-selected">Remove</button>
                     <button type="button" id="open-recipe">Open recipe</button>

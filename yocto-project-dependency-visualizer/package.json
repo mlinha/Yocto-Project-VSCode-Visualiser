@@ -23,8 +23,11 @@
       },
       {
         "command": "yocto-project-dependency-visualizer.returnNode",
-        "title": "Return to visualization",
-        "category": "Yocto Project Dependency Visualizer"
+        "title": "Return to visualization"
+      },
+      {
+        "command": "yocto-project-dependency-visualizer.openRecipe",
+        "title": "Open recipe"
       }
     ],
     "viewsContainers": {
@@ -54,11 +57,23 @@
     "menus": {
       "view/item/context": [
         {
-          "command": "yocto-project-dependency-visualizer.returnNode",
-          "when": "viewItem == YOUR_CONTEXT"
+          "command": "yocto-project-dependency-visualizer.returnNode"
+        },
+        {
+          "command": "yocto-project-dependency-visualizer.openRecipe"
         }
       ]
+    },
+    "commandPalette": [
+      {
+          "command": "yocto-project-dependency-visualizer.returnNode",
+          "when": "false"
+      },
+      {
+        "command": "yocto-project-dependency-visualizer.openRecipe",
+        "when": "false"
     }
+  ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",

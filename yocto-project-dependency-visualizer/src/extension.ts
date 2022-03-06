@@ -26,6 +26,28 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	);
 	context.subscriptions.push(
+		vscode.commands.registerCommand('yocto-project-dependency-visualizer.openRecipe', (item: NodeTreeItem) => {
+			if (item.recipe?.toString() !== undefined) {
+				var recipePath = item.recipe;
+
+                    if (vscode.workspace.workspaceFolders !== undefined) {
+                        const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
+                        if (workspacePath.includes("wsl")) {
+                            const pathData = workspacePath.replace("\\\\", "").split("\\");
+                            console.log(pathData);
+                            recipePath = "\\\\" + pathData[0] + "\\" + pathData[1] + "\\" + item.recipe.replace("/", "\\");
+                            console.log(recipePath);
+                        }
+                    }
+
+                    console.log(recipePath);
+
+                    vscode.workspace.openTextDocument(recipePath).then(
+                        document => vscode.window.showTextDocument(document));
+			}
+		})
+	);
+	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(
 		  "visualization-sidebar",
 		  sidebar
@@ -84,8 +106,8 @@ export function createVizualization(extensionUri: vscode.Uri) {
     VisualizationPanel.createOrShow(extensionUri);
 }
 
-export function addNodeToTree(name: string, id: number) {
-	treeDataProvider.addNode(name);
+export function addNodeToTree(name: string, recipe: string, id: number) {
+	treeDataProvider.addNode(name, recipe);
 	treeDataProvider.refresh();
 	VisualizationPanel.currentPanel?.getWebView().postMessage({
 		command: "remove-node",

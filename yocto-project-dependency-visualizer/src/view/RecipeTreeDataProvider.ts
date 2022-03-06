@@ -26,8 +26,8 @@ export class Provv implements vscode.TreeDataProvider<NodeTreeItem> {
         return element.children;
     }
 
-    public addNode(label: string) {
-        this.data.push(new NodeTreeItem(label));
+    public addNode(label: string, recipe: string) {
+        this.data.push(new NodeTreeItem(label, recipe));
         console.log(this.data)
     }
 
@@ -43,12 +43,14 @@ export class Provv implements vscode.TreeDataProvider<NodeTreeItem> {
 
 export class NodeTreeItem extends vscode.TreeItem {
     children: NodeTreeItem[] | undefined;
+    recipe: string;
 
-    constructor(label: string, children?: NodeTreeItem[]) {
+    constructor(label: string, recipe: string, children?: NodeTreeItem[]) {
         super(
             label,
             vscode.TreeItemCollapsibleState.None)
         this.children = children;
-        this.contextValue = "YOUR_CONTEXT";
+        this.recipe = recipe;
+        this.tooltip = this.recipe;
     }
 }

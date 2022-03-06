@@ -28,6 +28,23 @@ function activate(context) {
             removeNodeFromTree((_b = item.label) === null || _b === void 0 ? void 0 : _b.toString());
         }
     }));
+    context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.openRecipe', (item) => {
+        var _a;
+        if (((_a = item.recipe) === null || _a === void 0 ? void 0 : _a.toString()) !== undefined) {
+            var recipePath = item.recipe;
+            if (vscode.workspace.workspaceFolders !== undefined) {
+                const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
+                if (workspacePath.includes("wsl")) {
+                    const pathData = workspacePath.replace("\\\\", "").split("\\");
+                    console.log(pathData);
+                    recipePath = "\\\\" + pathData[0] + "\\" + pathData[1] + "\\" + item.recipe.replace("/", "\\");
+                    console.log(recipePath);
+                }
+            }
+            console.log(recipePath);
+            vscode.workspace.openTextDocument(recipePath).then(document => vscode.window.showTextDocument(document));
+        }
+    }));
     context.subscriptions.push(vscode.window.registerWebviewViewProvider("visualization-sidebar", sidebar));
     context.subscriptions.push(vscode.window.registerTreeDataProvider("visualization-list", treeDataProvider));
 }
@@ -72,9 +89,9 @@ function createVizualization(extensionUri) {
     VisualizationPanel_1.VisualizationPanel.createOrShow(extensionUri);
 }
 exports.createVizualization = createVizualization;
-function addNodeToTree(name, id) {
+function addNodeToTree(name, recipe, id) {
     var _a;
-    treeDataProvider.addNode(name);
+    treeDataProvider.addNode(name, recipe);
     treeDataProvider.refresh();
     (_a = VisualizationPanel_1.VisualizationPanel.currentPanel) === null || _a === void 0 ? void 0 : _a.getWebView().postMessage({
         command: "remove-node",
@@ -155,7 +172,7 @@ class Sidebar {
                         vscode.window.showInformationMessage("No node selected!");
                         return;
                     }
-                    (0, extension_1.addNodeToTree)(this.selectedNode.getName(), this.selectedNode.getId());
+                    (0, extension_1.addNodeToTree)(this.selectedNode.getName(), this.selectedNode.getRecipe(), this.selectedNode.getId());
                     this.clearSelectedNode();
                     break;
                 }
@@ -186,7 +203,8 @@ class Sidebar {
         this.selectedNode = node;
         (_a = this._view) === null || _a === void 0 ? void 0 : _a.webview.postMessage({
             command: "select-node-s",
-            name: node.getName()
+            name: node.getName(),
+            recipe: node.getRecipe()
         });
     }
     clearSelectedNode() {
@@ -227,8 +245,11 @@ class Sidebar {
                 <div class="menu">
                     <button type="button" id="generate">Visualize</button>
                     <hr>
-                    <h4>Selected node:</h4>
+                    <h3>Selected node:</h3>
+                    <h4>Name:</h4>
                     <div id="selected-name" style="color:green">-none-</div>
+                    <h4>Recipe:</h4>
+                    <div id="selected-recipe" style="color:green">-none-</div>
                     <br>
                     <button type="button" id="remove-selected">Remove</button>
                     <button type="button" id="open-recipe">Open recipe</button>
@@ -893,8 +914,8 @@ class Provv {
         }
         return element.children;
     }
-    addNode(label) {
-        this.data.push(new NodeTreeItem(label));
+    addNode(label, recipe) {
+        this.data.push(new NodeTreeItem(label, recipe));
         console.log(this.data);
     }
     removeNode(label) {
@@ -907,10 +928,11 @@ class Provv {
 }
 exports.Provv = Provv;
 class NodeTreeItem extends vscode.TreeItem {
-    constructor(label, children) {
+    constructor(label, recipe, children) {
         super(label, vscode.TreeItemCollapsibleState.None);
         this.children = children;
-        this.contextValue = "YOUR_CONTEXT";
+        this.recipe = recipe;
+        this.tooltip = this.recipe;
     }
 }
 exports.NodeTreeItem = NodeTreeItem;

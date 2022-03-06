@@ -15,10 +15,14 @@ function generate() {
 
 /**
  * @param {string} name
+ * @param {string} recipe
  */
-function selectNode(name) {
+function selectNode(name, recipe) {
   var selectedNameElement = document.getElementById("selected-name");
   selectedNameElement?.replaceChildren(document.createTextNode(name));
+
+  selectedNameElement = document.getElementById("selected-recipe");
+  selectedNameElement?.replaceChildren(document.createTextNode(recipe));
 }
 
 function clearSelectedNode() {
@@ -61,7 +65,7 @@ function openSelectedRecipe() {
     switch (data.command) {
       case 'select-node-s':
         console.log(data.name);
-        selectNode(data.name);
+        selectNode(data.name, data.recipe);
         break;
       case 'clear-selected-node-s':
         console.log(data.name);
