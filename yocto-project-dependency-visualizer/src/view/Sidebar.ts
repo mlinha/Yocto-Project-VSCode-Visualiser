@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { default_distance, default_iterations, default_strength } from "../constants";
 import { addNodeToTree, createVizualization, getNonce } from "../extension";
 import { Node } from "../parser/Node";
 
@@ -36,7 +37,11 @@ export class Sidebar implements vscode.WebviewViewProvider {
         webviewView.webview.onDidReceiveMessage(async (data) => {
             switch (data.command) {
                 case "visualize-s": {
-                    createVizualization(this._extensionUri);
+                    if (data.distance == "" || data.iterations == "" || data.strength == "") {
+                        vscode.window.showErrorMessage("Invalid force settings!");
+                        return;
+                    }
+                    createVizualization(this._extensionUri, data.type, data.distance, data.iterations, data.strength);
                     break;
                 }
                 case "remove-selected-s": {
@@ -138,6 +143,39 @@ export class Sidebar implements vscode.WebviewViewProvider {
 			</head>
             <body>
                 <div class="menu">
+                    <h4>Task type:</h4>
+                    <select id="task_type">
+                        <option value="default">DEFAULT</option>
+                        <option value="do_build">do_build</option>
+                        <option value="do_compile">do_compile</option>
+                        <option value="do_compile_ptest_base">do_compile_ptest_base</option>
+                        <option value="do_configure">do_configure</option>
+                        <option value="do_configure_ptest_base">do_configure_ptest_base</option>
+                        <option value="do_deploy_source_date_epoch">do_deploy_source_date_epoch</option>
+                        <option value="do_fetch">do_fetch</option>
+                        <option value="do_install">do_install</option>
+                        <option value="do_install_ptest_base">do_install_ptest_base</option>
+                        <option value="do_package">do_package</option>
+                        <option value="do_package_qa">do_package_qa</option>
+                        <option value="do_package_write_rpm">do_package_write_rpm</option>
+                        <option value="do_packagedata">do_packagedata</option>
+                        <option value="do_patch">do_patch</option>
+                        <option value="do_populate_lic">do_populate_lic</option>
+                        <option value="do_populate_sysroot">do_populate_sysroot</option>
+                        <option value="do_prepare_recipe_sysroot">do_prepare_recipe_sysroot</option>
+                        <option value="do_unpack">do_unpack</option>
+                        <option value="do_populate_sysroot">do_populate_sysroot</option>
+                    </select>
+                    <br>
+                    <br>
+                    <h4>Force link distance:</h4>
+                    <input id="distance" type="number" value="${default_distance}"></input>
+                    <h4>Force link iterations:</h4>
+                    <input id="iterations" type="number" value="${default_iterations}"></input>
+                    <h4>Force node strength (repulsion):</h4>
+                    <input id="strength" type="number" value="${default_strength}"></input>
+                    <br>
+                    <br>
                     <button type="button" id="generate">Visualize</button>
                     <hr>
                     <h3>Selected node:</h3>

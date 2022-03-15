@@ -8,8 +8,40 @@
 const vscode = acquireVsCodeApi();
 
 function generate() {
+  var select = document.getElementById("task_type");
+  var task_type = "do_prepare_recipe_sysroot";
+  if (select !== null) {
+    // @ts-ignore
+    task_type = select.value;
+  }
+
+  var input_distance = document.getElementById("distance");
+  var distance = "";
+  if (input_distance !== null) {
+    // @ts-ignore
+    distance = input_distance.value;
+  }
+
+  var input_iterations = document.getElementById("iterations");
+  var iterations = "do_prepare_recipe_sysroot";
+  if (input_iterations !== null) {
+    // @ts-ignore
+    iterations = input_iterations.value;
+  }
+
+  var input_strength = document.getElementById("strength");
+  var strength = "do_prepare_recipe_sysroot";
+  if (input_strength !== null) {
+    // @ts-ignore
+    strength = input_strength.value;
+  }
+
   vscode.postMessage({
     command: "visualize-s",
+    type: task_type,
+    distance: distance,
+    iterations: iterations,
+    strength: strength
   });
 }
 
@@ -18,16 +50,19 @@ function generate() {
  * @param {string} recipe
  */
 function selectNode(name, recipe) {
-  var selectedNameElement = document.getElementById("selected-name");
-  selectedNameElement?.replaceChildren(document.createTextNode(name));
+  var selectedElement = document.getElementById("selected-name");
+  selectedElement?.replaceChildren(document.createTextNode(name));
 
-  selectedNameElement = document.getElementById("selected-recipe");
-  selectedNameElement?.replaceChildren(document.createTextNode(recipe));
+  selectedElement = document.getElementById("selected-recipe");
+  selectedElement?.replaceChildren(document.createTextNode(recipe));
 }
 
 function clearSelectedNode() {
-  var selectedNameElement = document.getElementById("selected-name");
-  selectedNameElement?.replaceChildren(document.createTextNode("-none-"));
+  var selectedElement = document.getElementById("selected-name");
+  selectedElement?.replaceChildren(document.createTextNode("-none-"));
+
+  selectedElement = document.getElementById("selected-recipe");
+  selectedElement?.replaceChildren(document.createTextNode("-none-"));
 }
 
 function removeSelected() {
@@ -68,7 +103,6 @@ function openSelectedRecipe() {
         selectNode(data.name, data.recipe);
         break;
       case 'clear-selected-node-s':
-        console.log(data.name);
         clearSelectedNode();
         break;
     }

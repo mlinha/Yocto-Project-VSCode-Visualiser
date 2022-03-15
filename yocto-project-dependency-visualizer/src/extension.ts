@@ -4,18 +4,19 @@ import { Sidebar } from './view/Sidebar';
 import { existsSync, writeFileSync } from 'fs';
 import { DotParser } from './parser/DotParser';
 import { VisualizationPanel } from './view/VisualizationPanel';
-import { NodeTreeItem, Provv } from "./view/RecipeTreeDataProvider" 
+import { NodeTreeItem, TreeDataProvider } from "./view/RecipeTreeDataProvider" 
 import { Node } from './parser/Node';
+import { default_distance, default_iterations, default_strength, default_type } from './constants';
 
-var treeDataProvider: Provv;
+var treeDataProvider: TreeDataProvider;
 var sidebar: Sidebar;
 
 export function activate(context: vscode.ExtensionContext) {
 	sidebar = new Sidebar(context.extensionUri);
-	treeDataProvider = new Provv();
+	treeDataProvider = new TreeDataProvider();
 	context.subscriptions.push(
 		vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
-			createVizualization(context.extensionUri);
+			createVizualization(context.extensionUri, default_type, default_distance, default_iterations, default_strength);
 		})
 	);
 	context.subscriptions.push(
@@ -83,7 +84,7 @@ function callBitbake(path: string) {
 	});
 }
 
-export function createVizualization(extensionUri: vscode.Uri) {
+export function createVizualization(extensionUri: vscode.Uri, type: string, distance: number, iterations: number, strength: number) {
     if (vscode.workspace.workspaceFolders !== undefined) {
         const dotPath = vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/task-depends.dot";
         if (!existsSync(dotPath)) {
@@ -92,10 +93,14 @@ export function createVizualization(extensionUri: vscode.Uri) {
         }
 
         var dotParser = new DotParser(dotPath);
-        var graphString = dotParser.parseDotFile();
+        var graphString = dotParser.parseDotFile(type);
         writeFileSync(vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/graph.json", graphString);
         VisualizationPanel.graphString = graphString;
     }
+
+	VisualizationPanel.distance = distance;
+	VisualizationPanel.iterations = iterations;
+	VisualizationPanel.strength = strength;
     
 	treeDataProvider.clearAllNodes();
 	treeDataProvider.refresh();
@@ -111,7 +116,7 @@ export function addNodeToTree(name: string, recipe: string, id: number) {
 	treeDataProvider.refresh();
 	VisualizationPanel.currentPanel?.getWebView().postMessage({
 		command: "remove-node",
-		list_id: id 
+		id: id 
 	});
 }
 

@@ -1,7 +1,7 @@
 {
   "name": "yocto-project-dependency-visualizer",
   "displayName": "Yocto Project Dependency Visualizer",
-  "description": "A that can be used to visualize dependencies between recipes.",
+  "description": "An extension that can be used to visualize dependencies between recipes.",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.64.0"

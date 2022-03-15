@@ -1,6 +1,9 @@
 // This script will be run within the webview itself
 // It cannot access the main VS Code APIs directly.
 
+// @ts-ignore
+import * as d3 from "https://cdn.skypack.dev/d3@7";
+
 /**
  * @type {any}
  */
@@ -85,6 +88,7 @@ function initData() {
 }
 
 function nodesUpdate() {
+  console.log(data.nodes);
   graph_nodes = svg
     .selectAll("rect")
     .data(data.nodes)
@@ -93,14 +97,13 @@ function nodesUpdate() {
     .attr('width', 70)
     .attr('height', 30)
     .style("stroke", "cyan")
-    .on('click', function (d, i) {
-      //deleteNode(i);
+    .on('click', function (/** @type {any} */ d, /** @type {any} */ i) {
       selectNode(i);
     });
 
   labelsUpdate();
 
-  var maxTextWidth = d3.max(graph_package_names.nodes(), n => n.getComputedTextLength());
+  var maxTextWidth = d3.max(graph_package_names.nodes(), (/** @type {{ getComputedTextLength: () => any; }} */ n) => n.getComputedTextLength());
   if (maxTextWidth === undefined) {
     maxTextWidth = 20;
   }
@@ -112,7 +115,7 @@ function labelsUpdate() {
     .data(data.nodes)
     .enter()
     .append("text")
-    .on('click', function (d, i) {
+    .on('click', function (/** @type {{ recipe: any; }} */ d) {
       vscode.postMessage({
         command: "open-recipe-file",
         filename: d.recipe
@@ -123,7 +126,7 @@ function labelsUpdate() {
     .attr("width", "70")
     .attr("height", "30")
     .style("font-size", "8px")
-    .text(function (d) { return d.name; });
+    .text(function (/** @type {{ name: any; }} */ d) { return d.name; });
 }
 
 function linksUpdate() {
@@ -151,36 +154,36 @@ function arrowInit() {
 }
 
 /**
-* @param {number} i
-*/
+ * @param {any} i
+ */
 function selectNode(i) {
   //var selectedNameElement = document.getElementById("selected-name");
   //console.log(selectedNameElement);
   //selectedNameElement?.replaceChildren(document.createTextNode(data.nodes[i].name));
   //selectedNameElement?.appendChild(document.createTextNode(data.nodes[i].name));
+  console.log(i);
   vscode.postMessage({
     command: "select-node-v",
-    name: data.nodes[i].name,
-    list_id: i,
-    recipe: data.nodes[i].recipe
+    name: i.name,
+    id: i.id,
+    recipe: i.recipe
   });
 }
 
 /**
-* @param {number} i
+* @param {number} id
 */
-function deleteNode(i) {
+function deleteNode(id) {
+  console.log(id);
   svg.selectAll("line").remove();
   svg.selectAll("rect").remove();
   svg.selectAll("text").remove();
-  var id = data.nodes[i].id;
+  var list_id = data.nodes.findIndex((/** @type {{ id: number; }} */ node) => node.id === id);
+  //var id = data.nodes[list_id].id;
+  console.log(data.nodes[list_id]);
 
-  var removedNode = data.nodes.splice(i, 1)[0];
+  var removedNode = data.nodes.splice(list_id, 1)[0];
   console.log(removedNode);
-  vscode.postMessage({
-    command: "remove-node",
-    name: removedNode.name
-  });
 
   removedNodes.push(removedNode);
 
@@ -208,8 +211,8 @@ function returnNode(name) {
   svg.selectAll("rect").remove();
   svg.selectAll("text").remove();
 
-  var index = removedNodes.findIndex((node) => node.name === name);
-  var returnedNode = removedNodes.splice(index, 1)[0];
+  var list_id = removedNodes.findIndex((node) => node.name === name);
+  var returnedNode = removedNodes.splice(list_id, 1)[0];
   data.nodes.push(returnedNode);
 
   removedLinks = removedLinks.filter(function (/** @type {{ source: { id: any; }; target: { id: any; }; }} */ l) {
@@ -228,16 +231,16 @@ function returnNode(name) {
 // This function is run at each iteration of the force algorithm, updating the nodes position.
 function simulationTicked() {
   graph_links
-    .attr("x1", function (d) { return d.source.x; })
-    .attr("y1", function (d) { return d.source.y; })
-    .attr("x2", function (d) { return d.target.x; })
-    .attr("y2", function (d) { return d.target.y; });
+    .attr("x1", function (/** @type {{ source: { x: any; }; }} */ d) { return d.source.x; })
+    .attr("y1", function (/** @type {{ source: { y: any; }; }} */ d) { return d.source.y; })
+    .attr("x2", function (/** @type {{ target: { x: any; }; }} */ d) { return d.target.x; })
+    .attr("y2", function (/** @type {{ target: { y: any; }; }} */ d) { return d.target.y; });
   graph_nodes
-    .attr("x", function (d) { return d.x - 35; })
-    .attr("y", function (d) { return d.y - 15; });
+    .attr("x", function (/** @type {{ x: number; }} */ d) { return d.x - 35; })
+    .attr("y", function (/** @type {{ y: number; }} */ d) { return d.y - 15; });
   graph_package_names
-    .attr("x", function (d) { return d.x + 3 - 35; })
-    .attr("y", function (d) { return d.y + 10 - 15; });
+    .attr("x", function (/** @type {{ x: number; }} */ d) { return d.x + 3 - 35; })
+    .attr("y", function (/** @type {{ y: number; }} */ d) { return d.y + 10 - 15; });
 }
 
 function initSvg() {
@@ -246,22 +249,42 @@ function initSvg() {
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
     // @ts-ignore
-    .call(d3.zoom().scaleExtent([0.01, 10]).on("zoom", function () { svg.attr("transform", d3.event.transform) }))
+    .call(d3.zoom().scaleExtent([0.01, 10]).on("zoom", function () { svg.attr("transform", d3.zoomTransform(this)) }))
     .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 }
 
 function initSimulation() {
+  var input_distance = document.getElementById("distance");
+  var distance = "";
+  if (input_distance !== null) {
+    // @ts-ignore
+    distance = input_distance.value;
+  }
+
+  var input_iterations = document.getElementById("iterations");
+  var iterations = "do_prepare_recipe_sysroot";
+  if (input_iterations !== null) {
+    // @ts-ignore
+    iterations = input_iterations.value;
+  }
+
+  var input_strength = document.getElementById("strength");
+  var strength = "do_prepare_recipe_sysroot";
+  if (input_strength !== null) {
+    // @ts-ignore
+    strength = input_strength.value;
+  }
+
   // Let's list the force we wanna apply on the network
   simulation = d3.forceSimulation(data.nodes)                 // Force algorithm is applied to data.nodes
     .force("link", d3.forceLink()
-      .distance(400)
-      .iterations(1)                              // This force provides links between nodes
-      // @ts-ignore
-      .id(function (d) { return d.id; })                     // This provide  the id of a node
+      .distance(distance)
+      .iterations(iterations)                              // This force provides links between nodes
+      .id(function (/** @type {{ id: any; }} */ d) { return d.id; })                     // This provide  the id of a node
       .links(data.links)                                    // and this the list of links
     )
-    .force("charge", d3.forceManyBody().strength(-3500))         // This adds repulsion between nodes. Play with the -400 for the repulsion strength
+    .force("charge", d3.forceManyBody().strength(strength))         // This adds repulsion between nodes. Play with the -400 for the repulsion strength
     .force("center", d3.forceCenter(width / 2, height / 2)) // This force attracts nodes to the center of the svg area
     //.force("linkf", d3.forceLink(data.links).distance(400))    
     .on("end", simulationTicked);
@@ -291,7 +314,7 @@ function initSimulation() {
         returnNode(data.name);
         break;
       case "remove-node":
-        deleteNode(data.list_id)
+        deleteNode(data.id)
     }
   });
 }());

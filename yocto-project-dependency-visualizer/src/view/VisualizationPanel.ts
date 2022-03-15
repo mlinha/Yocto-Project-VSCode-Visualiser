@@ -18,6 +18,10 @@ export class VisualizationPanel {
 
     public static graphString: string;
 
+    public static distance: number;
+    public static iterations: number;
+    public static strength: number;
+
     public static createOrShow(extensionUri: vscode.Uri) {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
@@ -124,7 +128,7 @@ export class VisualizationPanel {
                         return;
                     }
                     vscode.window.showInformationMessage(data.name);
-                    var selectedNode = new Node(data.list_id, data.name);
+                    var selectedNode = new Node(data.id, data.name);
                     selectedNode.setRecipe(data.recipe);
 
                     selectNode(selectedNode);
@@ -183,8 +187,9 @@ export class VisualizationPanel {
                 <div class="chart">
                     <div id="visualization"></div>
                     <input type="hidden" id="graph" name="graph" value='${VisualizationPanel.graphString}''>
-                    <script src="https://d3js.org/d3.v4.min.js" nonce="${nonce}"></script>
-                    <script src="http://viz-js.com/bower_components/viz.js/viz-lite.js" nonce="${nonce}"></script>
+                    <input type="hidden" id="distance" value="${VisualizationPanel.distance}">
+                    <input type="hidden" id="iterations" value="${VisualizationPanel.iterations}">
+                    <input type="hidden" id="strength" value="${VisualizationPanel.strength}">
                     <script src="${scriptUri}" type="module" nonce="${nonce}"></script>
                     <script nonce="${nonce}"></script>
                 </div>

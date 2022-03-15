@@ -14,13 +14,14 @@ const fs_1 = __webpack_require__(4);
 const DotParser_1 = __webpack_require__(5);
 const VisualizationPanel_1 = __webpack_require__(9);
 const RecipeTreeDataProvider_1 = __webpack_require__(10);
+const constants_1 = __webpack_require__(11);
 var treeDataProvider;
 var sidebar;
 function activate(context) {
     sidebar = new Sidebar_1.Sidebar(context.extensionUri);
-    treeDataProvider = new RecipeTreeDataProvider_1.Provv();
+    treeDataProvider = new RecipeTreeDataProvider_1.TreeDataProvider();
     context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
-        createVizualization(context.extensionUri);
+        createVizualization(context.extensionUri, constants_1.default_type, constants_1.default_distance, constants_1.default_iterations, constants_1.default_strength);
     }));
     context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.returnNode', (item) => {
         var _a, _b;
@@ -70,7 +71,7 @@ function callBitbake(path) {
         }
     });
 }
-function createVizualization(extensionUri) {
+function createVizualization(extensionUri, type, distance, iterations, strength) {
     if (vscode.workspace.workspaceFolders !== undefined) {
         const dotPath = vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/task-depends.dot";
         if (!(0, fs_1.existsSync)(dotPath)) {
@@ -78,10 +79,13 @@ function createVizualization(extensionUri) {
             callBitbake(vscode.workspace.workspaceFolders[0].uri.fsPath);
         }
         var dotParser = new DotParser_1.DotParser(dotPath);
-        var graphString = dotParser.parseDotFile();
+        var graphString = dotParser.parseDotFile(type);
         (0, fs_1.writeFileSync)(vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/graph.json", graphString);
         VisualizationPanel_1.VisualizationPanel.graphString = graphString;
     }
+    VisualizationPanel_1.VisualizationPanel.distance = distance;
+    VisualizationPanel_1.VisualizationPanel.iterations = iterations;
+    VisualizationPanel_1.VisualizationPanel.strength = strength;
     treeDataProvider.clearAllNodes();
     treeDataProvider.refresh();
     VisualizationPanel_1.VisualizationPanel.kill();
@@ -95,7 +99,7 @@ function addNodeToTree(name, recipe, id) {
     treeDataProvider.refresh();
     (_a = VisualizationPanel_1.VisualizationPanel.currentPanel) === null || _a === void 0 ? void 0 : _a.getWebView().postMessage({
         command: "remove-node",
-        list_id: id
+        id: id
     });
 }
 exports.addNodeToTree = addNodeToTree;
@@ -144,6 +148,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Sidebar = void 0;
 const vscode = __webpack_require__(1);
+const constants_1 = __webpack_require__(11);
 const extension_1 = __webpack_require__(0);
 class Sidebar {
     constructor(_extensionUri) {
@@ -164,7 +169,11 @@ class Sidebar {
         webviewView.webview.onDidReceiveMessage((data) => __awaiter(this, void 0, void 0, function* () {
             switch (data.command) {
                 case "visualize-s": {
-                    (0, extension_1.createVizualization)(this._extensionUri);
+                    if (data.distance == "" || data.iterations == "" || data.strength == "") {
+                        vscode.window.showErrorMessage("Invalid force settings!");
+                        return;
+                    }
+                    (0, extension_1.createVizualization)(this._extensionUri, data.type, data.distance, data.iterations, data.strength);
                     break;
                 }
                 case "remove-selected-s": {
@@ -243,6 +252,39 @@ class Sidebar {
 			</head>
             <body>
                 <div class="menu">
+                    <h4>Task type:</h4>
+                    <select id="task_type">
+                        <option value="default">DEFAULT</option>
+                        <option value="do_build">do_build</option>
+                        <option value="do_compile">do_compile</option>
+                        <option value="do_compile_ptest_base">do_compile_ptest_base</option>
+                        <option value="do_configure">do_configure</option>
+                        <option value="do_configure_ptest_base">do_configure_ptest_base</option>
+                        <option value="do_deploy_source_date_epoch">do_deploy_source_date_epoch</option>
+                        <option value="do_fetch">do_fetch</option>
+                        <option value="do_install">do_install</option>
+                        <option value="do_install_ptest_base">do_install_ptest_base</option>
+                        <option value="do_package">do_package</option>
+                        <option value="do_package_qa">do_package_qa</option>
+                        <option value="do_package_write_rpm">do_package_write_rpm</option>
+                        <option value="do_packagedata">do_packagedata</option>
+                        <option value="do_patch">do_patch</option>
+                        <option value="do_populate_lic">do_populate_lic</option>
+                        <option value="do_populate_sysroot">do_populate_sysroot</option>
+                        <option value="do_prepare_recipe_sysroot">do_prepare_recipe_sysroot</option>
+                        <option value="do_unpack">do_unpack</option>
+                        <option value="do_populate_sysroot">do_populate_sysroot</option>
+                    </select>
+                    <br>
+                    <br>
+                    <h4>Force link distance:</h4>
+                    <input id="distance" type="number" value="${constants_1.default_distance}"></input>
+                    <h4>Force link iterations:</h4>
+                    <input id="iterations" type="number" value="${constants_1.default_iterations}"></input>
+                    <h4>Force node strength (repulsion):</h4>
+                    <input id="strength" type="number" value="${constants_1.default_strength}"></input>
+                    <br>
+                    <br>
                     <button type="button" id="generate">Visualize</button>
                     <hr>
                     <h3>Selected node:</h3>
@@ -293,7 +335,17 @@ class DotParser {
         }
         return data === null || data === void 0 ? void 0 : data.split("\n");
     }
-    parseDotFile() {
+    parseDotFile(type) {
+        var graphString;
+        if (type === "default") {
+            graphString = this.parseDotFileDefault();
+        }
+        else {
+            graphString = this.parseDotFileTaskType(type);
+        }
+        return graphString;
+    }
+    parseDotFileDefault() {
         var index = 1;
         var data = this.loadDotFile();
         var nodes = [];
@@ -344,6 +396,62 @@ class DotParser {
                 }
             }
         });
+        return this.generateGraphJSON(nodes, links);
+    }
+    parseDotFileTaskType(type) {
+        var index = 1;
+        var data = this.loadDotFile();
+        var nodes = [];
+        var links = [];
+        data === null || data === void 0 ? void 0 : data.forEach(line => {
+            var lineData = line.split(" -> ");
+            if (lineData[0].includes(type) && !lineData[0].includes("label")) {
+                const recipeName = lineData[0].replace("." + type, "").replace('"', "").replace('"', "").trim();
+                const dependentRecipeName = lineData[1].split(".")[0].replace('"', "").replace('"', "").trim();
+                if (dependentRecipeName !== recipeName) {
+                    var source;
+                    var target;
+                    if (!nodes.some(rn => rn.getName() == recipeName)) {
+                        nodes.push(new Node_1.Node(index, recipeName));
+                        source = index;
+                        index++;
+                    }
+                    else {
+                        source = nodes.find(rn => rn.getName() == recipeName).getId();
+                    }
+                    if (!nodes.some(rn => rn.getName() == dependentRecipeName)) {
+                        nodes.push(new Node_1.Node(index, dependentRecipeName));
+                        target = index;
+                        index++;
+                    }
+                    else {
+                        target = nodes.find(rn => rn.getName() == dependentRecipeName).getId();
+                    }
+                    const link = new Link_1.Link(source, target);
+                    links.push(link);
+                }
+            }
+            else if (lineData[0].includes("label=")) {
+                lineData = line.split(" ");
+                var recipeNameData = lineData[0].split(".");
+                var recipeName = recipeNameData[0].replace('"', "").replace('"', "").trim();
+                var label = lineData[2].replace("[", "").replace("]", "").replace("label=", "").replace('"', "").replace('"', "").trim();
+                var labelData = label.split(/\\n|:/);
+                var recipePath = labelData[labelData.length - 1];
+                if (!nodes.some(rn => rn.getName() == recipeName)) {
+                    const node = new Node_1.Node(index, recipeName);
+                    node.setRecipe(recipePath);
+                    nodes.push(node);
+                    index++;
+                }
+                else {
+                    nodes.find(rn => rn.getName() == recipeName).setRecipe(recipePath);
+                }
+            }
+        });
+        return this.generateGraphJSON(nodes, links);
+    }
+    generateGraphJSON(nodes, links) {
         var graph = new typescript_map_1.TSMap();
         graph.set("nodes", nodes);
         graph.set("links", links);
@@ -832,7 +940,7 @@ class VisualizationPanel {
                             return;
                         }
                         vscode.window.showInformationMessage(data.name);
-                        var selectedNode = new Node_1.Node(data.list_id, data.name);
+                        var selectedNode = new Node_1.Node(data.id, data.name);
                         selectedNode.setRecipe(data.recipe);
                         (0, extension_1.selectNode)(selectedNode);
                         break;
@@ -875,8 +983,9 @@ class VisualizationPanel {
                 <div class="chart">
                     <div id="visualization"></div>
                     <input type="hidden" id="graph" name="graph" value='${VisualizationPanel.graphString}''>
-                    <script src="https://d3js.org/d3.v4.min.js" nonce="${nonce}"></script>
-                    <script src="http://viz-js.com/bower_components/viz.js/viz-lite.js" nonce="${nonce}"></script>
+                    <input type="hidden" id="distance" value="${VisualizationPanel.distance}">
+                    <input type="hidden" id="iterations" value="${VisualizationPanel.iterations}">
+                    <input type="hidden" id="strength" value="${VisualizationPanel.strength}">
                     <script src="${scriptUri}" type="module" nonce="${nonce}"></script>
                     <script nonce="${nonce}"></script>
                 </div>
@@ -894,9 +1003,9 @@ VisualizationPanel.viewType = "visualization";
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.NodeTreeItem = exports.Provv = void 0;
+exports.NodeTreeItem = exports.TreeDataProvider = void 0;
 const vscode = __webpack_require__(1);
-class Provv {
+class TreeDataProvider {
     constructor() {
         this._onDidChangeTreeData = new vscode.EventEmitter();
         this.onDidChangeTreeData = this._onDidChangeTreeData.event;
@@ -926,7 +1035,7 @@ class Provv {
         this.data = [];
     }
 }
-exports.Provv = Provv;
+exports.TreeDataProvider = TreeDataProvider;
 class NodeTreeItem extends vscode.TreeItem {
     constructor(label, recipe, children) {
         super(label, vscode.TreeItemCollapsibleState.None);
@@ -936,6 +1045,19 @@ class NodeTreeItem extends vscode.TreeItem {
     }
 }
 exports.NodeTreeItem = NodeTreeItem;
+
+
+/***/ }),
+/* 11 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.default_strength = exports.default_iterations = exports.default_distance = exports.default_type = void 0;
+exports.default_type = "default";
+exports.default_distance = 400;
+exports.default_iterations = 1;
+exports.default_strength = -3500;
 
 
 /***/ })
