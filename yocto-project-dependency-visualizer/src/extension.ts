@@ -4,16 +4,23 @@ import { Sidebar } from './view/Sidebar';
 import { existsSync, writeFileSync } from 'fs';
 import { DotParser } from './parser/DotParser';
 import { VisualizationPanel } from './view/VisualizationPanel';
-import { NodeTreeItem, TreeDataProvider } from "./view/RecipeTreeDataProvider" 
+import { RemovedTreeDataProvider } from "./RemovedTreeDataProvider"
 import { Node } from './parser/Node';
 import { default_distance, default_iterations, default_strength, default_type } from './constants';
+import { getRecipePath } from './helpers';
+import { NodeTreeItem } from './NodeTreeItem';
+import { ConnectionsTreeDataProvider } from './ConnectionsTreeDataProvider';
 
-var treeDataProvider: TreeDataProvider;
+var removedTreeDataProvider: RemovedTreeDataProvider;
+var exportedTreeDataProvider: ConnectionsTreeDataProvider;
+var requestedTreeDataProvider: ConnectionsTreeDataProvider;
 var sidebar: Sidebar;
 
 export function activate(context: vscode.ExtensionContext) {
 	sidebar = new Sidebar(context.extensionUri);
-	treeDataProvider = new TreeDataProvider();
+	removedTreeDataProvider = new RemovedTreeDataProvider();
+	exportedTreeDataProvider = new ConnectionsTreeDataProvider();
+	requestedTreeDataProvider = new ConnectionsTreeDataProvider();
 	context.subscriptions.push(
 		vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
 			createVizualization(context.extensionUri, default_type, default_distance, default_iterations, default_strength);
@@ -22,47 +29,57 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('yocto-project-dependency-visualizer.returnNode', (item: NodeTreeItem) => {
 			if (item.label?.toString() !== undefined) {
-				removeNodeFromTree(item.label?.toString());
+				returnToVisualization(item.label.toString());
 			}
 		})
 	);
 	context.subscriptions.push(
 		vscode.commands.registerCommand('yocto-project-dependency-visualizer.openRecipe', (item: NodeTreeItem) => {
 			if (item.recipe?.toString() !== undefined) {
-				var recipePath = item.recipe;
+				var recipePath = getRecipePath(item.recipe);
 
-                    if (vscode.workspace.workspaceFolders !== undefined) {
-                        const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
-                        if (workspacePath.includes("wsl")) {
-                            const pathData = workspacePath.replace("\\\\", "").split("\\");
-                            console.log(pathData);
-                            recipePath = "\\\\" + pathData[0] + "\\" + pathData[1] + "\\" + item.recipe.replace("/", "\\");
-                            console.log(recipePath);
-                        }
-                    }
-
-                    console.log(recipePath);
-
-                    vscode.workspace.openTextDocument(recipePath).then(
-                        document => vscode.window.showTextDocument(document));
+				vscode.workspace.openTextDocument(recipePath).then(
+					document => vscode.window.showTextDocument(document));
+			}
+		})
+	);
+	context.subscriptions.push(
+		vscode.commands.registerCommand('yocto-project-dependency-visualizer.selectNodeFromList', (item: NodeTreeItem) => {
+			if (item.is_removed === 1) {
+				vscode.window.showErrorMessage("Node is in the \"Removed nodes\" list so it cannot be selected!");
+			}
+			else if (item.label?.toString() !== undefined) {
+				selectNodeFromList(item.label.toString());
 			}
 		})
 	);
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(
-		  "visualization-sidebar",
-		  sidebar
+			"visualization-sidebar",
+			sidebar
 		)
 	);
 	context.subscriptions.push(
 		vscode.window.registerTreeDataProvider(
-			"visualization-list",
-			treeDataProvider
-		  )
+			"removed-list",
+			removedTreeDataProvider
+		)
+	);
+	context.subscriptions.push(
+		vscode.window.registerTreeDataProvider(
+			"exported-list",
+			exportedTreeDataProvider
+		)
+	);
+	context.subscriptions.push(
+		vscode.window.registerTreeDataProvider(
+			"requested-list",
+			requestedTreeDataProvider
+		)
 	);
 }
 
-export function deactivate() {}
+export function deactivate() { }
 
 export function getNonce() {
 	let text = '';
@@ -84,51 +101,88 @@ function callBitbake(path: string) {
 	});
 }
 
-export function createVizualization(extensionUri: vscode.Uri, type: string, distance: number, iterations: number, strength: number) {
-    if (vscode.workspace.workspaceFolders !== undefined) {
-        const dotPath = vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/task-depends.dot";
-        if (!existsSync(dotPath)) {
-            console.log(vscode.workspace.workspaceFolders[0].uri.fsPath);
-            callBitbake(vscode.workspace.workspaceFolders[0].uri.fsPath);
-        }
+function selectNodeFromList(name: string) {
+	VisualizationPanel.currentPanel?.getWebView().postMessage({
+		command: "select_node_from_list_v",
+		name: name
+	});
+}
 
-        var dotParser = new DotParser(dotPath);
-        var graphString = dotParser.parseDotFile(type);
-        writeFileSync(vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/graph.json", graphString);
-        VisualizationPanel.graphString = graphString;
-    }
+export function createVizualization(extensionUri: vscode.Uri, type: string, distance: number, iterations: number, strength: number) {
+	if (vscode.workspace.workspaceFolders !== undefined) {
+		const dotPath = vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/task-depends.dot";
+		if (!existsSync(dotPath)) {
+			console.log(vscode.workspace.workspaceFolders[0].uri.fsPath);
+			callBitbake(vscode.workspace.workspaceFolders[0].uri.fsPath);
+		}
+
+		var dotParser = new DotParser(dotPath);
+		var graphString = dotParser.parseDotFile(type);
+		writeFileSync(vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/graph.json", graphString);
+		VisualizationPanel.graphString = graphString;
+	}
 
 	VisualizationPanel.distance = distance;
 	VisualizationPanel.iterations = iterations;
 	VisualizationPanel.strength = strength;
-    
-	treeDataProvider.clearAllNodes();
-	treeDataProvider.refresh();
+
+	removedTreeDataProvider.clearAllNodes();
+	removedTreeDataProvider.refresh();
 	VisualizationPanel.kill();
 
 	sidebar.clearSelectedNode();
 
-    VisualizationPanel.createOrShow(extensionUri);
+	exportedTreeDataProvider.clearAllNodes();
+	requestedTreeDataProvider.clearAllNodes();
+
+	exportedTreeDataProvider.refresh();
+	requestedTreeDataProvider.refresh();
+
+	VisualizationPanel.createOrShow(extensionUri);
 }
 
-export function addNodeToTree(name: string, recipe: string, id: number) {
-	treeDataProvider.addNode(name, recipe);
-	treeDataProvider.refresh();
+export function addNodeToRemoved(name: string, recipe: string, id: number) {
+	removedTreeDataProvider.addNode(name, recipe);
+	removedTreeDataProvider.refresh();
 	VisualizationPanel.currentPanel?.getWebView().postMessage({
 		command: "remove-node",
-		id: id 
+		id: id
 	});
+
+	exportedTreeDataProvider.clearAllNodes();
+	requestedTreeDataProvider.clearAllNodes();
+
+	exportedTreeDataProvider.refresh();
+	requestedTreeDataProvider.refresh();
 }
 
-export function removeNodeFromTree(name: string) {
-	treeDataProvider.removeNode(name);
-	treeDataProvider.refresh();
+export function returnToVisualization(name: string) {
+	removedTreeDataProvider.removeNode(name);
+	removedTreeDataProvider.refresh();
+
+	sidebar.clearSelectedNode();
+
+	exportedTreeDataProvider.clearAllNodes();
+	requestedTreeDataProvider.clearAllNodes();
+
+	exportedTreeDataProvider.refresh();
+	requestedTreeDataProvider.refresh();
+
 	VisualizationPanel.currentPanel?.getWebView().postMessage({
 		command: "return-node",
 		name: "name"
 	});
 }
 
-export function selectNode(node: Node) {
+export function selectNode(node: Node, exported: { name: string; recipe: string; is_removed: number; }[], requested: { name: string; recipe: string; is_removed: number; }[]) {
 	sidebar.selectNode(node);
+
+	exportedTreeDataProvider.clearAllNodes();
+	requestedTreeDataProvider.clearAllNodes();
+
+	exportedTreeDataProvider.updateNodes(exported);
+	requestedTreeDataProvider.updateNodes(requested);
+	
+	exportedTreeDataProvider.refresh();
+	requestedTreeDataProvider.refresh();
 }

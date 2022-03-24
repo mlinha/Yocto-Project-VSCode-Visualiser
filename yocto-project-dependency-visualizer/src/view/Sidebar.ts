@@ -1,7 +1,9 @@
 import * as vscode from "vscode";
 import { default_distance, default_iterations, default_strength } from "../constants";
-import { addNodeToTree, createVizualization, getNonce } from "../extension";
+import { addNodeToRemoved, createVizualization, getNonce } from "../extension";
+import { getRecipePath } from "../helpers";
 import { Node } from "../parser/Node";
+import { parseRecipe } from "../parser/recipe_parser";
 
 export class Sidebar implements vscode.WebviewViewProvider {
     /**
@@ -50,7 +52,7 @@ export class Sidebar implements vscode.WebviewViewProvider {
                         return;
                     }
 
-                    addNodeToTree(this.selectedNode.getName(), this.selectedNode.getRecipe(), this.selectedNode.getId());
+                    addNodeToRemoved(this.selectedNode.getName(), this.selectedNode.getRecipe(), this.selectedNode.getId());
                     this.clearSelectedNode();
 
                     break;
@@ -61,19 +63,7 @@ export class Sidebar implements vscode.WebviewViewProvider {
                         return;
                     }
 
-                    var recipePath = this.selectedNode.getRecipe();
-
-                    if (vscode.workspace.workspaceFolders !== undefined) {
-                        const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
-                        if (workspacePath.includes("wsl")) {
-                            const pathData = workspacePath.replace("\\\\", "").split("\\");
-                            console.log(pathData);
-                            recipePath = "\\\\" + pathData[0] + "\\" + pathData[1] + "\\" + this.selectedNode.getRecipe().replace("/", "\\");
-                            console.log(recipePath);
-                        }
-                    }
-
-                    console.log(recipePath);
+                    var recipePath = getRecipePath(this.selectedNode.getRecipe());
 
                     vscode.workspace.openTextDocument(recipePath).then(
                         document => vscode.window.showTextDocument(document));
@@ -86,10 +76,15 @@ export class Sidebar implements vscode.WebviewViewProvider {
 
     public selectNode(node: Node) {
         this.selectedNode = node;
+
+        var recipePath = getRecipePath(this.selectedNode.getRecipe());
+        var additionalInfo = parseRecipe(recipePath);
+
         this._view?.webview.postMessage({
             command: "select-node-s",
             name: node.getName(),
-            recipe: node.getRecipe()
+            recipe: node.getRecipe(),
+            licence: additionalInfo.licence
         });
     }
 
@@ -181,6 +176,8 @@ export class Sidebar implements vscode.WebviewViewProvider {
                     <h3>Selected node:</h3>
                     <h4>Name:</h4>
                     <div id="selected-name" style="color:green">-none-</div>
+                    <h4>License:</h4>
+                    <div id="selected-licence" style="color:green">-none-</div>
                     <h4>Recipe:</h4>
                     <div id="selected-recipe" style="color:green">-none-</div>
                     <br>

@@ -1,5 +1,6 @@
 import { readFileSync } from "fs";
 import { TSMap } from "typescript-map";
+import { loadFile } from "../helpers";
 import { GraphElement } from "./GraphElement";
 import { Link } from "./Link";
 import { Node } from "./Node";
@@ -9,17 +10,6 @@ export class DotParser {
     private dotPath: string;
     constructor(dotPath: string) {
         this.dotPath = dotPath;
-    }
-
-    private loadDotFile() {
-        var data;
-        try {
-            data = readFileSync(this.dotPath, "utf8");
-        } catch (err) {
-            console.error(err)
-        }
-
-        return data?.split("\n");
     }
 
     public parseDotFile(type: string): string {
@@ -36,7 +26,7 @@ export class DotParser {
 
     public parseDotFileDefault(): string{
         var index = 1;
-        var data = this.loadDotFile();
+        var data = loadFile(this.dotPath);
         var nodes: Array<GraphElement> = [];
         var links: Array<GraphElement> = [];
 
@@ -98,7 +88,7 @@ export class DotParser {
 
     public parseDotFileTaskType(type: string): string {
         var index = 1;
-        var data = this.loadDotFile();
+        var data = loadFile(this.dotPath);
         var nodes: Array<GraphElement> = [];
         var links: Array<GraphElement> = [];
 

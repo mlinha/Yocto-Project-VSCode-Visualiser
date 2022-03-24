@@ -48,13 +48,17 @@ function generate() {
 /**
  * @param {string} name
  * @param {string} recipe
+ * @param {string} licence
  */
-function selectNode(name, recipe) {
+function selectNode(name, recipe, licence) {
   var selectedElement = document.getElementById("selected-name");
   selectedElement?.replaceChildren(document.createTextNode(name));
 
   selectedElement = document.getElementById("selected-recipe");
   selectedElement?.replaceChildren(document.createTextNode(recipe));
+  
+  selectedElement = document.getElementById("selected-licence");
+  selectedElement?.replaceChildren(document.createTextNode(licence));
 }
 
 function clearSelectedNode() {
@@ -62,6 +66,9 @@ function clearSelectedNode() {
   selectedElement?.replaceChildren(document.createTextNode("-none-"));
 
   selectedElement = document.getElementById("selected-recipe");
+  selectedElement?.replaceChildren(document.createTextNode("-none-"));
+  
+  selectedElement = document.getElementById("selected-licence");
   selectedElement?.replaceChildren(document.createTextNode("-none-"));
 }
 
@@ -100,7 +107,7 @@ function openSelectedRecipe() {
     switch (data.command) {
       case 'select-node-s':
         console.log(data.name);
-        selectNode(data.name, data.recipe);
+        selectNode(data.name, data.recipe, data.licence);
         break;
       case 'clear-selected-node-s':
         clearSelectedNode();

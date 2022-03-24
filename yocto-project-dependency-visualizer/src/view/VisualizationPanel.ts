@@ -1,7 +1,7 @@
 import { tree } from "d3";
 import { readFileSync } from "fs";
 import * as vscode from "vscode";
-import { addNodeToTree, getNonce, selectNode } from "../extension";
+import { addNodeToRemoved, getNonce, selectNode } from "../extension";
 import { Node } from "../parser/Node";
 
 export class VisualizationPanel {
@@ -131,7 +131,9 @@ export class VisualizationPanel {
                     var selectedNode = new Node(data.id, data.name);
                     selectedNode.setRecipe(data.recipe);
 
-                    selectNode(selectedNode);
+                    console.log(data);
+
+                    selectNode(selectedNode, data.exported, data.requested);
 
                     break;
                 }

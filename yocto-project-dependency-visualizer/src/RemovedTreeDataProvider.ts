@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
+import { NodeTreeItem } from './NodeTreeItem';
 
-export class TreeDataProvider implements vscode.TreeDataProvider<NodeTreeItem> {
+export class RemovedTreeDataProvider implements vscode.TreeDataProvider<NodeTreeItem> {
     private _onDidChangeTreeData: vscode.EventEmitter<NodeTreeItem | undefined | void> = new vscode.EventEmitter<NodeTreeItem | undefined | void>();
 	readonly onDidChangeTreeData: vscode.Event<NodeTreeItem | undefined | void> = this._onDidChangeTreeData.event;
 
@@ -27,7 +27,7 @@ export class TreeDataProvider implements vscode.TreeDataProvider<NodeTreeItem> {
     }
 
     public addNode(label: string, recipe: string) {
-        this.data.push(new NodeTreeItem(label, recipe));
+        this.data.push(new NodeTreeItem(label, recipe, 0));
         console.log(this.data)
     }
 
@@ -38,19 +38,5 @@ export class TreeDataProvider implements vscode.TreeDataProvider<NodeTreeItem> {
 
     public clearAllNodes() {
         this.data = [];
-    }
-}
-
-export class NodeTreeItem extends vscode.TreeItem {
-    children: NodeTreeItem[] | undefined;
-    recipe: string;
-
-    constructor(label: string, recipe: string, children?: NodeTreeItem[]) {
-        super(
-            label,
-            vscode.TreeItemCollapsibleState.None)
-        this.children = children;
-        this.recipe = recipe;
-        this.tooltip = this.recipe;
     }
 }

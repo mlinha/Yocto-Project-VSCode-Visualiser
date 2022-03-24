@@ -13,7 +13,7 @@ const vscode = acquireVsCodeApi();
 /**
  * @type {any}
  */
-var data;
+var graph_data;
 
 /**
  * @type {any[]}
@@ -64,6 +64,11 @@ var graph_links;
 */
 var simulation;
 
+/**
+ * @type {{}}
+ */
+var linkMatrix = {}
+
 function setDimensions() {
   // set the dimensions and margins of the graph
   margin = { top: 10, right: 30, bottom: 30, left: 40 };
@@ -79,26 +84,27 @@ function initData() {
   if (graphElement !== null) {
     // @ts-ignore
     graphJson = graphElement.value;
-    data = JSON.parse(graphJson);
+    graph_data = JSON.parse(graphJson);
   }
   else {
     graphJson = null;
-    data = null;
+    graph_data = null;
   }
 }
 
 function nodesUpdate() {
-  console.log(data.nodes);
+  console.log(graph_data.nodes);
   graph_nodes = svg
     .selectAll("rect")
-    .data(data.nodes)
+    .data(graph_data.nodes)
     .enter()
     .append("rect")
     .attr('width', 70)
     .attr('height', 30)
+    .attr('stroke-width', 3)
     .style("stroke", "cyan")
-    .on('click', function (/** @type {any} */ d, /** @type {any} */ i) {
-      selectNode(i);
+    .on('click', function (/** @type {any} */ event, /** @type {any} */ node) {
+      selectNode(node);
     });
 
   labelsUpdate();
@@ -112,7 +118,7 @@ function nodesUpdate() {
 
 function labelsUpdate() {
   graph_package_names = svg.selectAll("text")
-    .data(data.nodes)
+    .data(graph_data.nodes)
     .enter()
     .append("text")
     .on('click', function (/** @type {{ recipe: any; }} */ d) {
@@ -133,7 +139,7 @@ function linksUpdate() {
   graph_links = svg.append("g")
     .attr("class", "links")
     .selectAll("line")
-    .data(data.links)
+    .data(graph_data.links)
     .enter().append("line")
     .attr("stroke", "white")
     .attr("marker-end", "url(#arrow)");
@@ -154,19 +160,78 @@ function arrowInit() {
 }
 
 /**
- * @param {any} i
+ * @param {any} node
  */
-function selectNode(i) {
-  //var selectedNameElement = document.getElementById("selected-name");
-  //console.log(selectedNameElement);
-  //selectedNameElement?.replaceChildren(document.createTextNode(data.nodes[i].name));
-  //selectedNameElement?.appendChild(document.createTextNode(data.nodes[i].name));
-  console.log(i);
+function selectNode(node) {
+  /**
+   * @type {{ name: string; recipe: string; is_removed: number; }[]}
+   */
+  var exportedNodes = [];
+
+  /**
+   * @type {{ name: string; recipe: string; is_removed: number; }[]}
+   */
+  var requestedNodes = [];
+
+  setSelectedColors(node.id);
+
+  graph_data.nodes.forEach(function(/** @type {any} */ d) {
+    // @ts-ignore
+    if (linkMatrix[node.id + "," + d.id] === 1) {
+      exportedNodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 0});
+    }
+    // @ts-ignore
+    else if (linkMatrix[d.id + "," + node.id] === 1) {
+      requestedNodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 0});
+    }
+  });
+
+  removedNodes.forEach(function(/** @type {any} */ d) {
+    // @ts-ignore
+    if (linkMatrix[node.id + "," + d.id] === 1) {
+      exportedNodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 1});
+    }
+    // @ts-ignore
+    else if (linkMatrix[d.id + "," + node.id] === 1) {
+      requestedNodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 1});
+    }
+  });
+
+  console.log(exportedNodes);
+  console.log(requestedNodes);
+
+  console.log(node);
+  console.log(node);
   vscode.postMessage({
     command: "select-node-v",
-    name: i.name,
-    id: i.id,
-    recipe: i.recipe
+    name: node.name,
+    id: node.id,
+    recipe: node.recipe,
+    exported: exportedNodes,
+    requested: requestedNodes
+  });
+}
+
+/**
+ * @param {number} id
+ */
+function setSelectedColors(id) {
+  graph_nodes.style("stroke", "cyan");
+
+  graph_nodes.style("stroke", function(/** @type {any} */ d) {
+    // @ts-ignore
+    if (linkMatrix[id + "," + d.id] === 1) {
+      return "red";
+    }
+    // @ts-ignore
+    else if (linkMatrix[d.id + "," + id] === 1) {
+      return "blue";
+    }
+    else if (d.id === id) {
+      return "yellow";
+    }
+
+    return "cyan";
   });
 }
 
@@ -178,16 +243,16 @@ function deleteNode(id) {
   svg.selectAll("line").remove();
   svg.selectAll("rect").remove();
   svg.selectAll("text").remove();
-  var list_id = data.nodes.findIndex((/** @type {{ id: number; }} */ node) => node.id === id);
+  var list_id = graph_data.nodes.findIndex((/** @type {{ id: number; }} */ node) => node.id === id);
   //var id = data.nodes[list_id].id;
-  console.log(data.nodes[list_id]);
+  console.log(graph_data.nodes[list_id]);
 
-  var removedNode = data.nodes.splice(list_id, 1)[0];
+  var removedNode = graph_data.nodes.splice(list_id, 1)[0];
   console.log(removedNode);
 
   removedNodes.push(removedNode);
 
-  data.links = data.links.filter(function (/** @type {{ source: { id: any; }; target: { id: any; }; }} */ l) {
+  graph_data.links = graph_data.links.filter(function (/** @type {{ source: { id: any; }; target: { id: any; }; }} */ l) {
     if (l.source.id === id || l.target.id === id) {
       removedLinks.push(l);
     }
@@ -213,11 +278,11 @@ function returnNode(name) {
 
   var list_id = removedNodes.findIndex((node) => node.name === name);
   var returnedNode = removedNodes.splice(list_id, 1)[0];
-  data.nodes.push(returnedNode);
+  graph_data.nodes.push(returnedNode);
 
   removedLinks = removedLinks.filter(function (/** @type {{ source: { id: any; }; target: { id: any; }; }} */ l) {
     if (l.source.id === returnedNode.id || l.target.id === returnedNode.id) {
-      data.links.push(l);
+      graph_data.links.push(l);
     }
     return l.source.id !== returnedNode.id && l.target.id !== returnedNode.id;
   });
@@ -254,6 +319,13 @@ function initSvg() {
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 }
 
+function initMatrix() {
+  graph_data.links.forEach(function(/** @type {any} */ link) {
+    // @ts-ignore
+    linkMatrix[link.source.id + "," + link.target.id] = 1;
+  });
+}
+
 function initSimulation() {
   var input_distance = document.getElementById("distance");
   var distance = "";
@@ -277,12 +349,12 @@ function initSimulation() {
   }
 
   // Let's list the force we wanna apply on the network
-  simulation = d3.forceSimulation(data.nodes)                 // Force algorithm is applied to data.nodes
+  simulation = d3.forceSimulation(graph_data.nodes)                 // Force algorithm is applied to data.nodes
     .force("link", d3.forceLink()
       .distance(distance)
       .iterations(iterations)                              // This force provides links between nodes
       .id(function (/** @type {{ id: any; }} */ d) { return d.id; })                     // This provide  the id of a node
-      .links(data.links)                                    // and this the list of links
+      .links(graph_data.links)                                    // and this the list of links
     )
     .force("charge", d3.forceManyBody().strength(strength))         // This adds repulsion between nodes. Play with the -400 for the repulsion strength
     .force("center", d3.forceCenter(width / 2, height / 2)) // This force attracts nodes to the center of the svg area
@@ -294,7 +366,7 @@ function initSimulation() {
   setDimensions();
   initData();
 
-  if (data !== null) {
+  if (graph_data !== null) {
     // append the svg object to the body of the page
     initSvg();
     arrowInit();
@@ -302,7 +374,10 @@ function initSimulation() {
     linksUpdate();
     // Initialize the nodes
     nodesUpdate();
+
     initSimulation();
+
+    initMatrix();
   }
 
   window.addEventListener('message', event => {
@@ -315,6 +390,11 @@ function initSimulation() {
         break;
       case "remove-node":
         deleteNode(data.id)
+        break;
+      case "select_node_from_list_v":
+        var selected_node = graph_data.nodes.find((/** @type {{ name: string; }} */ node) => node.name === data.name);
+        selectNode(selected_node);
+        break;
     }
   });
 }());

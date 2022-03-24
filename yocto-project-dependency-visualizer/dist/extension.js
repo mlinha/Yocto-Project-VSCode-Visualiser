@@ -6,48 +6,55 @@
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.selectNode = exports.removeNodeFromTree = exports.addNodeToTree = exports.createVizualization = exports.getNonce = exports.deactivate = exports.activate = void 0;
+exports.selectNode = exports.returnToVisualization = exports.addNodeToRemoved = exports.createVizualization = exports.getNonce = exports.deactivate = exports.activate = void 0;
 const vscode = __webpack_require__(1);
 const cp = __webpack_require__(2);
 const Sidebar_1 = __webpack_require__(3);
-const fs_1 = __webpack_require__(4);
-const DotParser_1 = __webpack_require__(5);
-const VisualizationPanel_1 = __webpack_require__(9);
-const RecipeTreeDataProvider_1 = __webpack_require__(10);
-const constants_1 = __webpack_require__(11);
-var treeDataProvider;
+const fs_1 = __webpack_require__(6);
+const DotParser_1 = __webpack_require__(8);
+const VisualizationPanel_1 = __webpack_require__(12);
+const RemovedTreeDataProvider_1 = __webpack_require__(13);
+const constants_1 = __webpack_require__(4);
+const helpers_1 = __webpack_require__(5);
+const ConnectionsTreeDataProvider_1 = __webpack_require__(15);
+var removedTreeDataProvider;
+var exportedTreeDataProvider;
+var requestedTreeDataProvider;
 var sidebar;
 function activate(context) {
     sidebar = new Sidebar_1.Sidebar(context.extensionUri);
-    treeDataProvider = new RecipeTreeDataProvider_1.TreeDataProvider();
+    removedTreeDataProvider = new RemovedTreeDataProvider_1.RemovedTreeDataProvider();
+    exportedTreeDataProvider = new ConnectionsTreeDataProvider_1.ConnectionsTreeDataProvider();
+    requestedTreeDataProvider = new ConnectionsTreeDataProvider_1.ConnectionsTreeDataProvider();
     context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
         createVizualization(context.extensionUri, constants_1.default_type, constants_1.default_distance, constants_1.default_iterations, constants_1.default_strength);
     }));
     context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.returnNode', (item) => {
-        var _a, _b;
+        var _a;
         if (((_a = item.label) === null || _a === void 0 ? void 0 : _a.toString()) !== undefined) {
-            removeNodeFromTree((_b = item.label) === null || _b === void 0 ? void 0 : _b.toString());
+            returnToVisualization(item.label.toString());
         }
     }));
     context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.openRecipe', (item) => {
         var _a;
         if (((_a = item.recipe) === null || _a === void 0 ? void 0 : _a.toString()) !== undefined) {
-            var recipePath = item.recipe;
-            if (vscode.workspace.workspaceFolders !== undefined) {
-                const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
-                if (workspacePath.includes("wsl")) {
-                    const pathData = workspacePath.replace("\\\\", "").split("\\");
-                    console.log(pathData);
-                    recipePath = "\\\\" + pathData[0] + "\\" + pathData[1] + "\\" + item.recipe.replace("/", "\\");
-                    console.log(recipePath);
-                }
-            }
-            console.log(recipePath);
+            var recipePath = (0, helpers_1.getRecipePath)(item.recipe);
             vscode.workspace.openTextDocument(recipePath).then(document => vscode.window.showTextDocument(document));
         }
     }));
+    context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.selectNodeFromList', (item) => {
+        var _a;
+        if (item.is_removed === 1) {
+            vscode.window.showErrorMessage("Node is in the \"Removed nodes\" list so it cannot be selected!");
+        }
+        else if (((_a = item.label) === null || _a === void 0 ? void 0 : _a.toString()) !== undefined) {
+            selectNodeFromList(item.label.toString());
+        }
+    }));
     context.subscriptions.push(vscode.window.registerWebviewViewProvider("visualization-sidebar", sidebar));
-    context.subscriptions.push(vscode.window.registerTreeDataProvider("visualization-list", treeDataProvider));
+    context.subscriptions.push(vscode.window.registerTreeDataProvider("removed-list", removedTreeDataProvider));
+    context.subscriptions.push(vscode.window.registerTreeDataProvider("exported-list", exportedTreeDataProvider));
+    context.subscriptions.push(vscode.window.registerTreeDataProvider("requested-list", requestedTreeDataProvider));
 }
 exports.activate = activate;
 function deactivate() { }
@@ -71,6 +78,13 @@ function callBitbake(path) {
         }
     });
 }
+function selectNodeFromList(name) {
+    var _a;
+    (_a = VisualizationPanel_1.VisualizationPanel.currentPanel) === null || _a === void 0 ? void 0 : _a.getWebView().postMessage({
+        command: "select_node_from_list_v",
+        name: name
+    });
+}
 function createVizualization(extensionUri, type, distance, iterations, strength) {
     if (vscode.workspace.workspaceFolders !== undefined) {
         const dotPath = vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/task-depends.dot";
@@ -86,35 +100,54 @@ function createVizualization(extensionUri, type, distance, iterations, strength)
     VisualizationPanel_1.VisualizationPanel.distance = distance;
     VisualizationPanel_1.VisualizationPanel.iterations = iterations;
     VisualizationPanel_1.VisualizationPanel.strength = strength;
-    treeDataProvider.clearAllNodes();
-    treeDataProvider.refresh();
+    removedTreeDataProvider.clearAllNodes();
+    removedTreeDataProvider.refresh();
     VisualizationPanel_1.VisualizationPanel.kill();
     sidebar.clearSelectedNode();
+    exportedTreeDataProvider.clearAllNodes();
+    requestedTreeDataProvider.clearAllNodes();
+    exportedTreeDataProvider.refresh();
+    requestedTreeDataProvider.refresh();
     VisualizationPanel_1.VisualizationPanel.createOrShow(extensionUri);
 }
 exports.createVizualization = createVizualization;
-function addNodeToTree(name, recipe, id) {
+function addNodeToRemoved(name, recipe, id) {
     var _a;
-    treeDataProvider.addNode(name, recipe);
-    treeDataProvider.refresh();
+    removedTreeDataProvider.addNode(name, recipe);
+    removedTreeDataProvider.refresh();
     (_a = VisualizationPanel_1.VisualizationPanel.currentPanel) === null || _a === void 0 ? void 0 : _a.getWebView().postMessage({
         command: "remove-node",
         id: id
     });
+    exportedTreeDataProvider.clearAllNodes();
+    requestedTreeDataProvider.clearAllNodes();
+    exportedTreeDataProvider.refresh();
+    requestedTreeDataProvider.refresh();
 }
-exports.addNodeToTree = addNodeToTree;
-function removeNodeFromTree(name) {
+exports.addNodeToRemoved = addNodeToRemoved;
+function returnToVisualization(name) {
     var _a;
-    treeDataProvider.removeNode(name);
-    treeDataProvider.refresh();
+    removedTreeDataProvider.removeNode(name);
+    removedTreeDataProvider.refresh();
+    sidebar.clearSelectedNode();
+    exportedTreeDataProvider.clearAllNodes();
+    requestedTreeDataProvider.clearAllNodes();
+    exportedTreeDataProvider.refresh();
+    requestedTreeDataProvider.refresh();
     (_a = VisualizationPanel_1.VisualizationPanel.currentPanel) === null || _a === void 0 ? void 0 : _a.getWebView().postMessage({
         command: "return-node",
         name: "name"
     });
 }
-exports.removeNodeFromTree = removeNodeFromTree;
-function selectNode(node) {
+exports.returnToVisualization = returnToVisualization;
+function selectNode(node, exported, requested) {
     sidebar.selectNode(node);
+    exportedTreeDataProvider.clearAllNodes();
+    requestedTreeDataProvider.clearAllNodes();
+    exportedTreeDataProvider.updateNodes(exported);
+    requestedTreeDataProvider.updateNodes(requested);
+    exportedTreeDataProvider.refresh();
+    requestedTreeDataProvider.refresh();
 }
 exports.selectNode = selectNode;
 
@@ -148,8 +181,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Sidebar = void 0;
 const vscode = __webpack_require__(1);
-const constants_1 = __webpack_require__(11);
+const constants_1 = __webpack_require__(4);
 const extension_1 = __webpack_require__(0);
+const helpers_1 = __webpack_require__(5);
+const recipe_parser_1 = __webpack_require__(7);
 class Sidebar {
     constructor(_extensionUri) {
         this._extensionUri = _extensionUri;
@@ -181,7 +216,7 @@ class Sidebar {
                         vscode.window.showInformationMessage("No node selected!");
                         return;
                     }
-                    (0, extension_1.addNodeToTree)(this.selectedNode.getName(), this.selectedNode.getRecipe(), this.selectedNode.getId());
+                    (0, extension_1.addNodeToRemoved)(this.selectedNode.getName(), this.selectedNode.getRecipe(), this.selectedNode.getId());
                     this.clearSelectedNode();
                     break;
                 }
@@ -190,17 +225,7 @@ class Sidebar {
                         vscode.window.showInformationMessage("No node selected!");
                         return;
                     }
-                    var recipePath = this.selectedNode.getRecipe();
-                    if (vscode.workspace.workspaceFolders !== undefined) {
-                        const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
-                        if (workspacePath.includes("wsl")) {
-                            const pathData = workspacePath.replace("\\\\", "").split("\\");
-                            console.log(pathData);
-                            recipePath = "\\\\" + pathData[0] + "\\" + pathData[1] + "\\" + this.selectedNode.getRecipe().replace("/", "\\");
-                            console.log(recipePath);
-                        }
-                    }
-                    console.log(recipePath);
+                    var recipePath = (0, helpers_1.getRecipePath)(this.selectedNode.getRecipe());
                     vscode.workspace.openTextDocument(recipePath).then(document => vscode.window.showTextDocument(document));
                     break;
                 }
@@ -210,10 +235,13 @@ class Sidebar {
     selectNode(node) {
         var _a;
         this.selectedNode = node;
+        var recipePath = (0, helpers_1.getRecipePath)(this.selectedNode.getRecipe());
+        var additionalInfo = (0, recipe_parser_1.parseRecipe)(recipePath);
         (_a = this._view) === null || _a === void 0 ? void 0 : _a.webview.postMessage({
             command: "select-node-s",
             name: node.getName(),
-            recipe: node.getRecipe()
+            recipe: node.getRecipe(),
+            licence: additionalInfo.licence
         });
     }
     clearSelectedNode() {
@@ -290,6 +318,8 @@ class Sidebar {
                     <h3>Selected node:</h3>
                     <h4>Name:</h4>
                     <div id="selected-name" style="color:green">-none-</div>
+                    <h4>License:</h4>
+                    <div id="selected-licence" style="color:green">-none-</div>
                     <h4>Recipe:</h4>
                     <div id="selected-recipe" style="color:green">-none-</div>
                     <br>
@@ -306,9 +336,16 @@ exports.Sidebar = Sidebar;
 
 /***/ }),
 /* 4 */
-/***/ ((module) => {
+/***/ ((__unused_webpack_module, exports) => {
 
-module.exports = require("fs");
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.default_strength = exports.default_iterations = exports.default_distance = exports.default_type = void 0;
+exports.default_type = "default";
+exports.default_distance = 400;
+exports.default_iterations = 1;
+exports.default_strength = -3500;
+
 
 /***/ }),
 /* 5 */
@@ -316,24 +353,81 @@ module.exports = require("fs");
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getRecipePath = exports.loadFile = void 0;
+const fs_1 = __webpack_require__(6);
+const vscode = __webpack_require__(1);
+function loadFile(file) {
+    var data;
+    try {
+        data = (0, fs_1.readFileSync)(file, "utf8");
+    }
+    catch (err) {
+        console.error(err);
+    }
+    return data === null || data === void 0 ? void 0 : data.split("\n");
+}
+exports.loadFile = loadFile;
+function getRecipePath(recipe) {
+    var recipePath = recipe;
+    if (vscode.workspace.workspaceFolders !== undefined) {
+        const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
+        if (workspacePath.includes("wsl")) {
+            const pathData = workspacePath.replace("\\\\", "").split("\\");
+            console.log(pathData);
+            recipePath = "\\\\" + pathData[0] + "\\" + pathData[1] + "\\" + recipe.replace("/", "\\");
+            console.log(recipePath);
+        }
+    }
+    console.log(recipePath);
+    return recipePath;
+}
+exports.getRecipePath = getRecipePath;
+
+
+/***/ }),
+/* 6 */
+/***/ ((module) => {
+
+module.exports = require("fs");
+
+/***/ }),
+/* 7 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseRecipe = void 0;
+const helpers_1 = __webpack_require__(5);
+function parseRecipe(recipe) {
+    var additionalInfo = {};
+    var data = (0, helpers_1.loadFile)(recipe);
+    data === null || data === void 0 ? void 0 : data.forEach(line => {
+        if (line.includes("LICENSE")) {
+            var lineData = line.split("=");
+            if (lineData.length > 1) {
+                additionalInfo.licence = lineData[1].replace('"', "").replace('"', "").trim();
+            }
+        }
+    });
+    return additionalInfo;
+}
+exports.parseRecipe = parseRecipe;
+
+
+/***/ }),
+/* 8 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DotParser = void 0;
-const fs_1 = __webpack_require__(4);
-const typescript_map_1 = __webpack_require__(6);
-const Link_1 = __webpack_require__(7);
-const Node_1 = __webpack_require__(8);
+const typescript_map_1 = __webpack_require__(9);
+const helpers_1 = __webpack_require__(5);
+const Link_1 = __webpack_require__(10);
+const Node_1 = __webpack_require__(11);
 class DotParser {
     constructor(dotPath) {
         this.dotPath = dotPath;
-    }
-    loadDotFile() {
-        var data;
-        try {
-            data = (0, fs_1.readFileSync)(this.dotPath, "utf8");
-        }
-        catch (err) {
-            console.error(err);
-        }
-        return data === null || data === void 0 ? void 0 : data.split("\n");
     }
     parseDotFile(type) {
         var graphString;
@@ -347,7 +441,7 @@ class DotParser {
     }
     parseDotFileDefault() {
         var index = 1;
-        var data = this.loadDotFile();
+        var data = (0, helpers_1.loadFile)(this.dotPath);
         var nodes = [];
         var links = [];
         data === null || data === void 0 ? void 0 : data.forEach(line => {
@@ -400,7 +494,7 @@ class DotParser {
     }
     parseDotFileTaskType(type) {
         var index = 1;
-        var data = this.loadDotFile();
+        var data = (0, helpers_1.loadFile)(this.dotPath);
         var nodes = [];
         var links = [];
         data === null || data === void 0 ? void 0 : data.forEach(line => {
@@ -462,7 +556,7 @@ exports.DotParser = DotParser;
 
 
 /***/ }),
-/* 6 */
+/* 9 */
 /***/ (function(__unused_webpack_module, exports) {
 
 
@@ -787,7 +881,7 @@ exports.TSMap = TSMap;
 
 
 /***/ }),
-/* 7 */
+/* 10 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -806,7 +900,7 @@ exports.Link = Link;
 
 
 /***/ }),
-/* 8 */
+/* 11 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -838,7 +932,7 @@ exports.Node = Node;
 
 
 /***/ }),
-/* 9 */
+/* 12 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -855,7 +949,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationPanel = void 0;
 const vscode = __webpack_require__(1);
 const extension_1 = __webpack_require__(0);
-const Node_1 = __webpack_require__(8);
+const Node_1 = __webpack_require__(11);
 class VisualizationPanel {
     constructor(panel, extensionUri) {
         this._disposables = [];
@@ -942,7 +1036,8 @@ class VisualizationPanel {
                         vscode.window.showInformationMessage(data.name);
                         var selectedNode = new Node_1.Node(data.id, data.name);
                         selectedNode.setRecipe(data.recipe);
-                        (0, extension_1.selectNode)(selectedNode);
+                        console.log(data);
+                        (0, extension_1.selectNode)(selectedNode, data.exported, data.requested);
                         break;
                     }
                 }
@@ -998,14 +1093,15 @@ VisualizationPanel.viewType = "visualization";
 
 
 /***/ }),
-/* 10 */
+/* 13 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.NodeTreeItem = exports.TreeDataProvider = void 0;
+exports.RemovedTreeDataProvider = void 0;
 const vscode = __webpack_require__(1);
-class TreeDataProvider {
+const NodeTreeItem_1 = __webpack_require__(14);
+class RemovedTreeDataProvider {
     constructor() {
         this._onDidChangeTreeData = new vscode.EventEmitter();
         this.onDidChangeTreeData = this._onDidChangeTreeData.event;
@@ -1024,7 +1120,7 @@ class TreeDataProvider {
         return element.children;
     }
     addNode(label, recipe) {
-        this.data.push(new NodeTreeItem(label, recipe));
+        this.data.push(new NodeTreeItem_1.NodeTreeItem(label, recipe, 0));
         console.log(this.data);
     }
     removeNode(label) {
@@ -1035,12 +1131,23 @@ class TreeDataProvider {
         this.data = [];
     }
 }
-exports.TreeDataProvider = TreeDataProvider;
+exports.RemovedTreeDataProvider = RemovedTreeDataProvider;
+
+
+/***/ }),
+/* 14 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NodeTreeItem = void 0;
+const vscode = __webpack_require__(1);
 class NodeTreeItem extends vscode.TreeItem {
-    constructor(label, recipe, children) {
+    constructor(label, recipe, is_removed, children) {
         super(label, vscode.TreeItemCollapsibleState.None);
         this.children = children;
         this.recipe = recipe;
+        this.is_removed = is_removed;
         this.tooltip = this.recipe;
     }
 }
@@ -1048,16 +1155,42 @@ exports.NodeTreeItem = NodeTreeItem;
 
 
 /***/ }),
-/* 11 */
-/***/ ((__unused_webpack_module, exports) => {
+/* 15 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.default_strength = exports.default_iterations = exports.default_distance = exports.default_type = void 0;
-exports.default_type = "default";
-exports.default_distance = 400;
-exports.default_iterations = 1;
-exports.default_strength = -3500;
+exports.ConnectionsTreeDataProvider = void 0;
+const vscode = __webpack_require__(1);
+const NodeTreeItem_1 = __webpack_require__(14);
+class ConnectionsTreeDataProvider {
+    constructor() {
+        this._onDidChangeTreeData = new vscode.EventEmitter();
+        this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+        this.data = [];
+    }
+    refresh() {
+        this._onDidChangeTreeData.fire();
+    }
+    getTreeItem(element) {
+        return element;
+    }
+    getChildren(element) {
+        if (element === undefined) {
+            return this.data;
+        }
+        return element.children;
+    }
+    updateNodes(nodeData) {
+        nodeData.forEach(node => {
+            this.data.push(new NodeTreeItem_1.NodeTreeItem(node.name, node.recipe, node.is_removed));
+        });
+    }
+    clearAllNodes() {
+        this.data = [];
+    }
+}
+exports.ConnectionsTreeDataProvider = ConnectionsTreeDataProvider;
 
 
 /***/ })
