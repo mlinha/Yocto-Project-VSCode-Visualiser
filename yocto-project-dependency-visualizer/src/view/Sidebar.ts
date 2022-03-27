@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { default_distance, default_iterations, default_strength } from "../constants";
-import { addNodeToRemoved, createVizualization, getNonce } from "../extension";
+import { addNodeToRemoved, createVizualization, exportSVG, getNonce } from "../extension";
 import { getRecipePath } from "../helpers";
 import { Node } from "../parser/Node";
 import { parseRecipe } from "../parser/recipe_parser";
@@ -68,6 +68,10 @@ export class Sidebar implements vscode.WebviewViewProvider {
                     vscode.workspace.openTextDocument(recipePath).then(
                         document => vscode.window.showTextDocument(document));
 
+                    break;
+                }
+                case "call-export-svg-s": {
+                    exportSVG();
                     break;
                 }
             }
@@ -172,6 +176,7 @@ export class Sidebar implements vscode.WebviewViewProvider {
                     <br>
                     <br>
                     <button type="button" id="generate">Visualize</button>
+                    <button type="button" id="export">Export SVG</button>
                     <hr>
                     <h3>Selected node:</h3>
                     <h4>Name:</h4>

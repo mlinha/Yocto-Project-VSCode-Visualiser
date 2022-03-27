@@ -6,7 +6,7 @@
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.selectNode = exports.returnToVisualization = exports.addNodeToRemoved = exports.createVizualization = exports.getNonce = exports.deactivate = exports.activate = void 0;
+exports.selectNode = exports.exportSVG = exports.returnToVisualization = exports.addNodeToRemoved = exports.createVizualization = exports.getNonce = exports.deactivate = exports.activate = void 0;
 const vscode = __webpack_require__(1);
 const cp = __webpack_require__(2);
 const Sidebar_1 = __webpack_require__(3);
@@ -81,7 +81,7 @@ function callBitbake(path) {
 function selectNodeFromList(name) {
     var _a;
     (_a = VisualizationPanel_1.VisualizationPanel.currentPanel) === null || _a === void 0 ? void 0 : _a.getWebView().postMessage({
-        command: "select_node_from_list_v",
+        command: "select-node-from-list-v",
         name: name
     });
 }
@@ -116,7 +116,7 @@ function addNodeToRemoved(name, recipe, id) {
     removedTreeDataProvider.addNode(name, recipe);
     removedTreeDataProvider.refresh();
     (_a = VisualizationPanel_1.VisualizationPanel.currentPanel) === null || _a === void 0 ? void 0 : _a.getWebView().postMessage({
-        command: "remove-node",
+        command: "remove-node-v",
         id: id
     });
     exportedTreeDataProvider.clearAllNodes();
@@ -135,11 +135,19 @@ function returnToVisualization(name) {
     exportedTreeDataProvider.refresh();
     requestedTreeDataProvider.refresh();
     (_a = VisualizationPanel_1.VisualizationPanel.currentPanel) === null || _a === void 0 ? void 0 : _a.getWebView().postMessage({
-        command: "return-node",
+        command: "return-node-v",
         name: "name"
     });
 }
 exports.returnToVisualization = returnToVisualization;
+function exportSVG() {
+    var _a;
+    (_a = VisualizationPanel_1.VisualizationPanel.currentPanel) === null || _a === void 0 ? void 0 : _a.getWebView().postMessage({
+        command: "call-export-svg-v",
+        name: "name"
+    });
+}
+exports.exportSVG = exportSVG;
 function selectNode(node, exported, requested) {
     sidebar.selectNode(node);
     exportedTreeDataProvider.clearAllNodes();
@@ -229,6 +237,10 @@ class Sidebar {
                     vscode.workspace.openTextDocument(recipePath).then(document => vscode.window.showTextDocument(document));
                     break;
                 }
+                case "call-export-svg-s": {
+                    (0, extension_1.exportSVG)();
+                    break;
+                }
             }
         }));
     }
@@ -314,6 +326,7 @@ class Sidebar {
                     <br>
                     <br>
                     <button type="button" id="generate">Visualize</button>
+                    <button type="button" id="export">Export SVG</button>
                     <hr>
                     <h3>Selected node:</h3>
                     <h4>Name:</h4>

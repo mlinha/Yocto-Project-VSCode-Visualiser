@@ -305,9 +305,6 @@ function simulationTicked() {
 function initSvg() {
   svg = d3.select("#visualization")
     .append("svg")
-    .on('click', function (/** @type {any} */ event, /** @type {any} */ node) {
-      saveSvg();
-    })
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
     .attr("id", "svg")
@@ -361,7 +358,7 @@ function initSimulation() {
     .on("end", simulationTicked);
 }
 
-function saveSvg() {
+function exportSVG() {  
   var svg = document.getElementById("svg");
   var curr_width = svg?.getAttribute("width")
   var curr_height = svg?.getAttribute("height")
@@ -421,15 +418,18 @@ function saveSvg() {
     const data = event.data; // The JSON data our extension sent
 
     switch (data.command) {
-      case "return-node":
+      case "return-node-v":
         returnNode(data.name);
         break;
-      case "remove-node":
+      case "remove-node-v":
         deleteNode(data.id)
         break;
-      case "select_node_from_list_v":
+      case "select-node-from-list-v":
         var selected_node = graph_data.nodes.find((/** @type {{ name: string; }} */ node) => node.name === data.name);
         selectNode(selected_node);
+        break;
+      case "call-export-svg-v":
+        exportSVG();
         break;
     }
   });

@@ -45,6 +45,12 @@ function generate() {
   });
 }
 
+function callExportSVG() {
+  vscode.postMessage({
+    command: "call-export-svg-s"
+  });
+}
+
 /**
  * @param {string} name
  * @param {string} recipe
@@ -88,6 +94,11 @@ function openSelectedRecipe() {
   var button = document.getElementById("generate");
   if (button !== null) {
     button.onclick = generate;
+  }
+
+  button = document.getElementById("export");
+  if (button !== null) {
+    button.onclick = callExportSVG;
   }
 
   button = document.getElementById("remove-selected");

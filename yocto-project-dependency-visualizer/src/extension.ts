@@ -103,7 +103,7 @@ function callBitbake(path: string) {
 
 function selectNodeFromList(name: string) {
 	VisualizationPanel.currentPanel?.getWebView().postMessage({
-		command: "select_node_from_list_v",
+		command: "select-node-from-list-v",
 		name: name
 	});
 }
@@ -145,7 +145,7 @@ export function addNodeToRemoved(name: string, recipe: string, id: number) {
 	removedTreeDataProvider.addNode(name, recipe);
 	removedTreeDataProvider.refresh();
 	VisualizationPanel.currentPanel?.getWebView().postMessage({
-		command: "remove-node",
+		command: "remove-node-v",
 		id: id
 	});
 
@@ -169,7 +169,14 @@ export function returnToVisualization(name: string) {
 	requestedTreeDataProvider.refresh();
 
 	VisualizationPanel.currentPanel?.getWebView().postMessage({
-		command: "return-node",
+		command: "return-node-v",
+		name: "name"
+	});
+}
+
+export function exportSVG() {
+	VisualizationPanel.currentPanel?.getWebView().postMessage({
+		command: "call-export-svg-v",
 		name: "name"
 	});
 }
