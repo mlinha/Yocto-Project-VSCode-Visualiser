@@ -1,7 +1,6 @@
-import { tree } from "d3";
-import { readFileSync } from "fs";
+import { writeFileSync } from "fs";
 import * as vscode from "vscode";
-import { addNodeToRemoved, getNonce, selectNode } from "../extension";
+import { getNonce, selectNode } from "../extension";
 import { Node } from "../parser/Node";
 
 export class VisualizationPanel {
@@ -98,30 +97,6 @@ export class VisualizationPanel {
         
         webview.onDidReceiveMessage(async (data) => {
             switch (data.command) {
-                case "open-recipe-file": {
-                    console.log("Message: " + data.filename)
-                    if (!data.filename) {
-                        return;
-                    }
-                    vscode.window.showInformationMessage(data.filename);
-
-                    var recipePath = "data.filename";
-
-                    if (vscode.workspace.workspaceFolders !== undefined) {
-                        const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
-                        if (workspacePath.includes("wsl")) {
-                            const pathData = workspacePath.replace("\\\\", "").split("\\");
-                            console.log(pathData);
-                            recipePath = "\\\\" + pathData[0] + "\\" + pathData[1] + "\\" + data.filename.replace("/", "\\");
-                            console.log(recipePath);
-                        }
-                    }
-
-                    vscode.workspace.openTextDocument(recipePath).then(
-                        document => vscode.window.showTextDocument(document));
-
-                    break;
-                }
                 case "select-node-v": {
                     console.log("Name: " + data.name)
                     if (!data.name) {
@@ -134,6 +109,18 @@ export class VisualizationPanel {
                     console.log(data);
 
                     selectNode(selectedNode, data.exported, data.requested);
+
+                    break;
+                }
+                case "export-svg-v": {
+                    if (!data.svg) {
+                        return;
+                    }
+                    vscode.window.showSaveDialog({filters: {"Images" : ["svg"]}}).then(file => {
+                        if (file !== undefined) {
+                            writeFileSync(file.fsPath, '<?xml version="1.0" standalone="no"?>\r\n' + data.svg);
+                        }
+                    });
 
                     break;
                 }

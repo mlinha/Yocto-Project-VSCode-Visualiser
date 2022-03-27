@@ -77,7 +77,8 @@
         },
         {
           "when": "view == requested-list || view == exported-list",
-          "command": "yocto-project-dependency-visualizer.selectNodeFromList"
+          "command": "yocto-project-dependency-visualizer.selectNodeFromList",
+          "group": "inline"
         }
       ]
     },

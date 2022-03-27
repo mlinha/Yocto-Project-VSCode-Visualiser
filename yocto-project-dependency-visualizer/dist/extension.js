@@ -947,6 +947,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VisualizationPanel = void 0;
+const fs_1 = __webpack_require__(6);
 const vscode = __webpack_require__(1);
 const extension_1 = __webpack_require__(0);
 const Node_1 = __webpack_require__(11);
@@ -1009,25 +1010,6 @@ class VisualizationPanel {
             this._panel.webview.html = this._getHtmlForWebview(webview);
             webview.onDidReceiveMessage((data) => __awaiter(this, void 0, void 0, function* () {
                 switch (data.command) {
-                    case "open-recipe-file": {
-                        console.log("Message: " + data.filename);
-                        if (!data.filename) {
-                            return;
-                        }
-                        vscode.window.showInformationMessage(data.filename);
-                        var recipePath = "data.filename";
-                        if (vscode.workspace.workspaceFolders !== undefined) {
-                            const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
-                            if (workspacePath.includes("wsl")) {
-                                const pathData = workspacePath.replace("\\\\", "").split("\\");
-                                console.log(pathData);
-                                recipePath = "\\\\" + pathData[0] + "\\" + pathData[1] + "\\" + data.filename.replace("/", "\\");
-                                console.log(recipePath);
-                            }
-                        }
-                        vscode.workspace.openTextDocument(recipePath).then(document => vscode.window.showTextDocument(document));
-                        break;
-                    }
                     case "select-node-v": {
                         console.log("Name: " + data.name);
                         if (!data.name) {
@@ -1038,6 +1020,17 @@ class VisualizationPanel {
                         selectedNode.setRecipe(data.recipe);
                         console.log(data);
                         (0, extension_1.selectNode)(selectedNode, data.exported, data.requested);
+                        break;
+                    }
+                    case "export-svg-v": {
+                        if (!data.svg) {
+                            return;
+                        }
+                        vscode.window.showSaveDialog({ filters: { "Images": ["svg"] } }).then(file => {
+                            if (file !== undefined) {
+                                (0, fs_1.writeFileSync)(file.fsPath, '<?xml version="1.0" standalone="no"?>\r\n' + data.svg);
+                            }
+                        });
                         break;
                     }
                 }

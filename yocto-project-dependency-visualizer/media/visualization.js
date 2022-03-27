@@ -120,13 +120,7 @@ function labelsUpdate() {
   graph_package_names = svg.selectAll("text")
     .data(graph_data.nodes)
     .enter()
-    .append("text")
-    .on('click', function (/** @type {{ recipe: any; }} */ d) {
-      vscode.postMessage({
-        command: "open-recipe-file",
-        filename: d.recipe
-      });
-    });
+    .append("text");
 
   graph_package_names.style("fill", "red")
     .attr("width", "70")
@@ -311,12 +305,17 @@ function simulationTicked() {
 function initSvg() {
   svg = d3.select("#visualization")
     .append("svg")
+    .on('click', function (/** @type {any} */ event, /** @type {any} */ node) {
+      saveSvg();
+    })
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
+    .attr("id", "svg")
+    .style("background-color", "#161623")
     // @ts-ignore
     .call(d3.zoom().scaleExtent([0.01, 10]).on("zoom", function () { svg.attr("transform", d3.zoomTransform(this)) }))
     .append("g")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
 }
 
 function initMatrix() {
@@ -360,6 +359,43 @@ function initSimulation() {
     .force("center", d3.forceCenter(width / 2, height / 2)) // This force attracts nodes to the center of the svg area
     //.force("linkf", d3.forceLink(data.links).distance(400))    
     .on("end", simulationTicked);
+}
+
+function saveSvg() {
+  var svg = document.getElementById("svg");
+  var curr_width = svg?.getAttribute("width")
+  var curr_height = svg?.getAttribute("height")
+  console.log(curr_width);
+  console.log(curr_height);
+  // @ts-ignore
+  var g = svg.querySelector('g') // select the parent g
+  // @ts-ignore
+  var curr_transform = g?.getAttribute("transform")
+  // @ts-ignore
+  g.setAttribute("transform", "translate(" + g.getBBox().width / 2 + "," + g.getBBox().height / 2 + ")"); // clean transform
+  // @ts-ignore
+  svg.setAttribute('width', g.getBBox().width) // set svg to be the g dimensions
+  // @ts-ignore
+  svg.setAttribute('height', g.getBBox().height)
+  var serializer = new XMLSerializer();
+  // @ts-ignore
+  var source = serializer.serializeToString(svg);
+  vscode.postMessage({
+    command: "export-svg-v",
+    svg: source
+  });
+
+  console.log(curr_width);
+  console.log(curr_height);
+  console.log(curr_transform);
+
+
+  // @ts-ignore
+  g.setAttribute("transform", curr_transform); // clean transform
+  // @ts-ignore
+  svg.setAttribute('width', curr_width) // set svg to be the g dimensions
+  // @ts-ignore
+  svg.setAttribute('height', curr_height)
 }
 
 (function () {
