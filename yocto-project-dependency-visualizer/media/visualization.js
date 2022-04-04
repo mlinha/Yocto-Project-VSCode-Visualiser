@@ -16,6 +16,11 @@ const vscode = acquireVsCodeApi();
 var graph_data;
 
 /**
+ * @type {string}
+ */
+var mode;
+
+/**
  * @type {any[]}
  */
 var removedNodes = [];
@@ -24,11 +29,6 @@ var removedNodes = [];
  * @type {{ source: { id: any; }; target: { id: any; }; }[]}
  */
 var removedLinks = [];
-
-/**
- * @type {{ left: number; right: number; top: number; bottom: number; }}
- */
-var margin;
 
 /**
  * @type {number}
@@ -69,15 +69,22 @@ var simulation;
  */
 var linkMatrix = {}
 
+const license_colors = ["red", "green", "blue", "yellow", "orange", "purple", "lime", "wheat", "violet", "olive"];
+
+/**
+ * @type {{ name: string; count: number}[]}
+ */
+ var used_licenses = []
+
 function setDimensions() {
   // set the dimensions and margins of the graph
-  margin = { top: 10, right: 30, bottom: 30, left: 40 };
-  width = screen.width - margin.left - margin.right;
-  height = screen.height - margin.top - margin.bottom;
+  width = screen.width;
+  height = screen.height;
 }
 
 function initData() {
   var graphElement = document.getElementById("graph");
+  var modeElement = document.getElementById("mode");
 
   var graphJson;
 
@@ -89,6 +96,44 @@ function initData() {
   else {
     graphJson = null;
     graph_data = null;
+  }
+
+  mode = "default";
+  if (modeElement !== null) {
+    // @ts-ignore
+    mode = modeElement.value;
+  }
+
+  if (mode === "licenses") {
+    graph_data.nodes.forEach((/** @type {any} */ d) => {
+        var lic = used_licenses.find((lic) => lic.name == d.license);
+        if (lic !== undefined) {
+          // @ts-ignore
+          lic.count = lic.count + 1;
+        }
+        else {
+          used_licenses.push({ name: d.license, count: 1 });
+        }
+      });
+
+    used_licenses = used_licenses.filter((lic) => lic.name != "" && lic.name != "none");
+
+    used_licenses.sort((a, b) => (a.count < b.count) ? 1 : -1);
+
+   /**
+   * @type {{ license: string; color: string;}[]}
+   */
+    var legend = [];
+
+    var count = Math.min(license_colors.length, used_licenses.length);
+    for (var i = 0; i < count; i++) {
+      legend.push({license: used_licenses[i].name, color: license_colors[i]});
+    }
+
+    vscode.postMessage({
+      command: "show-legend-v",
+      legend: legend
+    });
   }
 }
 
@@ -106,6 +151,10 @@ function nodesUpdate() {
     .on('click', function (/** @type {any} */ event, /** @type {any} */ node) {
       selectNode(node);
     });
+
+  if (mode === "licenses") {
+    setLicensesColors();
+  }
 
   labelsUpdate();
 
@@ -153,45 +202,48 @@ function arrowInit() {
     .attr("d", "M0,-5L10,0L0,5");
 }
 
-/**
+ /**
  * @param {any} node
+ * @param {boolean} licenses
  */
-function selectNode(node) {
+ function selectNodeNormalConnections(node, licenses) {
   /**
    * @type {{ name: string; recipe: string; is_removed: number; }[]}
    */
-  var exportedNodes = [];
+  var usedByNodes = [];
 
   /**
    * @type {{ name: string; recipe: string; is_removed: number; }[]}
    */
   var requestedNodes = [];
 
-  setSelectedColors(node.id);
+  if (!licenses) {
+    setSelectedColors(node.id);
+  }
 
   graph_data.nodes.forEach(function(/** @type {any} */ d) {
     // @ts-ignore
     if (linkMatrix[node.id + "," + d.id] === 1) {
-      exportedNodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 0});
+      requestedNodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 0});
     }
     // @ts-ignore
     else if (linkMatrix[d.id + "," + node.id] === 1) {
-      requestedNodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 0});
+      usedByNodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 0});
     }
   });
 
   removedNodes.forEach(function(/** @type {any} */ d) {
     // @ts-ignore
     if (linkMatrix[node.id + "," + d.id] === 1) {
-      exportedNodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 1});
+      requestedNodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 1});
     }
     // @ts-ignore
     else if (linkMatrix[d.id + "," + node.id] === 1) {
-      requestedNodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 1});
+      usedByNodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 1});
     }
   });
 
-  console.log(exportedNodes);
+  console.log(usedByNodes);
   console.log(requestedNodes);
 
   console.log(node);
@@ -201,9 +253,117 @@ function selectNode(node) {
     name: node.name,
     id: node.id,
     recipe: node.recipe,
-    exported: exportedNodes,
-    requested: requestedNodes
+    used_by: usedByNodes,
+    requested: requestedNodes,
+    affected: []
   });
+}
+
+/**
+ * @param {any} node
+ */
+ function selectNodeAffectedConnections(node) {
+  /**
+   * @type {{ name: string; recipe: string; is_removed: number; }[]}
+   */
+  var usedByNodes = [];
+
+  /**
+   * @type {{ name: string; recipe: string; is_removed: number; }[]}
+   */
+  var requestedNodes = [];
+
+  /**
+   * @type {{ name: string; recipe: string; is_removed: number; }[]}
+   */
+  var affected_nodes = [];
+
+  graph_data.nodes.forEach(function(/** @type {any} */ d) {
+    // @ts-ignore
+    if (linkMatrix[node.id + "," + d.id] === 1) {
+      requestedNodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 0});
+    }
+    // @ts-ignore
+    else if (linkMatrix[d.id + "," + node.id] === 1) {
+      usedByNodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 0});
+      addAffectedNodes(affected_nodes, d);
+    }
+  });
+
+  removedNodes.forEach(function(/** @type {any} */ d) {
+    // @ts-ignore
+    if (linkMatrix[node.id + "," + d.id] === 1) {
+      requestedNodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 1});
+    }
+    // @ts-ignore
+    else if (linkMatrix[d.id + "," + node.id] === 1) {
+      usedByNodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 1});
+      addAffectedNodes(affected_nodes, d);
+    }
+  });
+
+  setAffectedColors(node.id, affected_nodes);
+
+  console.log(usedByNodes);
+  console.log(requestedNodes);
+
+  console.log(node);
+  console.log(node);
+  vscode.postMessage({
+    command: "select-node-v",
+    name: node.name,
+    id: node.id,
+    recipe: node.recipe,
+    used_by: usedByNodes,
+    requested: requestedNodes,
+    affected: affected_nodes
+  });
+}
+
+/**
+ * @param {{name: string;recipe: string;is_removed: number;}[]} affected_nodes
+ * @param {any} node
+ */
+function addAffectedNodes(affected_nodes, node) {
+  affected_nodes.push({"name": node.name, "recipe": node.recipe, "is_removed": 1});
+  graph_data.nodes.forEach(function(/** @type {any} */ d) {
+    // @ts-ignore
+  if (linkMatrix[d.id + "," + node.id] === 1) {
+    //affected_nodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 0});
+    if (affected_nodes.find((n) => n.name === d.name) !== undefined) {
+      return;
+    }
+    addAffectedNodes(affected_nodes, d);
+    }
+  });
+
+  removedNodes.forEach(function(/** @type {any} */ d) {
+    // @ts-ignore
+  if (linkMatrix[d.id + "," + node.id] === 1) {
+    //affected_nodes.push({"name": d.name, "recipe": d.recipe, "is_removed": 1});
+    if (affected_nodes.find((n) => n.name === d.name) !== undefined) {
+      return;
+    }
+    addAffectedNodes(affected_nodes, d);
+    }
+  });
+}
+
+/**
+ * @param {any} node
+ */
+function selectNode(node){
+  console.log("mode");
+  console.log(mode);
+  if (mode === "affected_nodes") {
+    selectNodeAffectedConnections(node);
+  }
+  else if (mode === "licenses") {
+    selectNodeNormalConnections(node, true);
+  }
+  else {
+    selectNodeNormalConnections(node, false);
+  }
 }
 
 /**
@@ -223,6 +383,40 @@ function setSelectedColors(id) {
     }
     else if (d.id === id) {
       return "yellow";
+    }
+
+    return "cyan";
+  });
+}
+
+ /**
+ * @param {number} id
+ * @param {{name: string;recipe: string;is_removed: number;}[]} affected_nodes
+ */
+ function setAffectedColors(id, affected_nodes) {
+  graph_nodes.style("stroke", "cyan");
+
+  graph_nodes.style("stroke", function(/** @type {any} */ d) {
+    // @ts-ignore
+    if (affected_nodes.find((node) => node.name == d.name) !== undefined) {
+      return "red";
+    }
+    else if (d.id === id) {
+      return "yellow";
+    }
+
+    return "cyan";
+  });
+}
+
+function setLicensesColors() {
+  graph_nodes.style("stroke", function(/** @type {any} */ d) {
+  
+    var count = Math.min(license_colors.length, used_licenses.length);
+    for (var i = 0; i < count; i++) {
+      if (used_licenses[i].name === d.license) {
+        return license_colors[i];
+      }
     }
 
     return "cyan";
@@ -305,8 +499,8 @@ function simulationTicked() {
 function initSvg() {
   svg = d3.select("#visualization")
     .append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
+    .attr("width", width)
+    .attr("height", height)
     .attr("id", "svg")
     .style("background-color", "#161623")
     // @ts-ignore

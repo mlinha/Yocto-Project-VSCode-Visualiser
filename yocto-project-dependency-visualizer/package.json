@@ -53,8 +53,16 @@
           "contextualTitle": "Visualizer"
         },
         {
-          "id": "exported-list",
-          "name": "Exported nodes"
+          "type": "webview",
+          "id": "visualization-legend",
+          "name": "Legend",
+          "icon": "",
+          "contextualTitle": "Visualizer - Legend",
+          "when": "showLegend"
+        },
+        {
+          "id": "used-by-list",
+          "name": "Used by nodes"
         },
         {
           "id": "requested-list",
@@ -63,6 +71,11 @@
         {
           "id": "removed-list",
           "name": "Removed nodes"
+        },
+        {
+          "id": "affected-list",
+          "name": "Affected nodes",
+          "when": "showAffected"
         }
       ]
     },
@@ -76,7 +89,7 @@
           "command": "yocto-project-dependency-visualizer.openRecipe"
         },
         {
-          "when": "view == requested-list || view == exported-list",
+          "when": "view == requested-list || view == exported-list || view == affected-list",
           "command": "yocto-project-dependency-visualizer.selectNodeFromList",
           "group": "inline"
         }

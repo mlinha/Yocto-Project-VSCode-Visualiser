@@ -6,24 +6,33 @@ import { DotParser } from './parser/DotParser';
 import { VisualizationPanel } from './view/VisualizationPanel';
 import { RemovedTreeDataProvider } from "./RemovedTreeDataProvider"
 import { Node } from './parser/Node';
-import { default_distance, default_iterations, default_strength, default_type } from './constants';
+import { default_distance, default_iterations, default_mode, default_strength, default_type } from './constants';
 import { getRecipePath } from './helpers';
 import { NodeTreeItem } from './NodeTreeItem';
 import { ConnectionsTreeDataProvider } from './ConnectionsTreeDataProvider';
+import { Legend } from './view/Legend';
 
 var removedTreeDataProvider: RemovedTreeDataProvider;
-var exportedTreeDataProvider: ConnectionsTreeDataProvider;
+var usedByTreeDataProvider: ConnectionsTreeDataProvider;
 var requestedTreeDataProvider: ConnectionsTreeDataProvider;
+var affectedTreeDataProvider: ConnectionsTreeDataProvider;
 var sidebar: Sidebar;
+var legend: Legend;
+
+
 
 export function activate(context: vscode.ExtensionContext) {
 	sidebar = new Sidebar(context.extensionUri);
+	legend = new Legend(context.extensionUri);
+
 	removedTreeDataProvider = new RemovedTreeDataProvider();
-	exportedTreeDataProvider = new ConnectionsTreeDataProvider();
+	usedByTreeDataProvider = new ConnectionsTreeDataProvider();
 	requestedTreeDataProvider = new ConnectionsTreeDataProvider();
+	affectedTreeDataProvider = new ConnectionsTreeDataProvider();
+
 	context.subscriptions.push(
 		vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
-			createVizualization(context.extensionUri, default_type, default_distance, default_iterations, default_strength);
+			createVizualization(context.extensionUri, default_type, default_distance, default_iterations, default_strength, default_mode);
 		})
 	);
 	context.subscriptions.push(
@@ -60,6 +69,12 @@ export function activate(context: vscode.ExtensionContext) {
 		)
 	);
 	context.subscriptions.push(
+		vscode.window.registerWebviewViewProvider(
+			"visualization-legend",
+			legend
+		)
+	);
+	context.subscriptions.push(
 		vscode.window.registerTreeDataProvider(
 			"removed-list",
 			removedTreeDataProvider
@@ -67,8 +82,8 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 	context.subscriptions.push(
 		vscode.window.registerTreeDataProvider(
-			"exported-list",
-			exportedTreeDataProvider
+			"used-by-list",
+			usedByTreeDataProvider
 		)
 	);
 	context.subscriptions.push(
@@ -77,6 +92,14 @@ export function activate(context: vscode.ExtensionContext) {
 			requestedTreeDataProvider
 		)
 	);
+	context.subscriptions.push(
+		vscode.window.registerTreeDataProvider(
+			"affected-list",
+			affectedTreeDataProvider
+		)
+	);
+	vscode.commands.executeCommand('setContext', 'showAffected', false);
+	vscode.commands.executeCommand('setContext', 'showLegend', false);
 }
 
 export function deactivate() { }
@@ -108,7 +131,7 @@ function selectNodeFromList(name: string) {
 	});
 }
 
-export function createVizualization(extensionUri: vscode.Uri, type: string, distance: number, iterations: number, strength: number) {
+export function createVizualization(extensionUri: vscode.Uri, type: string, distance: number, iterations: number, strength: number, mode: string) {
 	if (vscode.workspace.workspaceFolders !== undefined) {
 		const dotPath = vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/task-depends.dot";
 		if (!existsSync(dotPath)) {
@@ -117,10 +140,25 @@ export function createVizualization(extensionUri: vscode.Uri, type: string, dist
 		}
 
 		var dotParser = new DotParser(dotPath);
-		var graphString = dotParser.parseDotFile(type);
+		var graphString = dotParser.parseDotFile(type, mode);
 		writeFileSync(vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/graph.json", graphString);
 		VisualizationPanel.graphString = graphString;
 	}
+	
+	if (mode === "affected_nodes") {
+		vscode.commands.executeCommand('setContext', 'showAffected', true);
+	}
+	else {
+		vscode.commands.executeCommand('setContext', 'showAffected', false);
+	}
+	if (mode === "licenses") {
+		vscode.commands.executeCommand('setContext', 'showLegend', true);
+	}
+	else {
+		vscode.commands.executeCommand('setContext', 'showLegend', false);
+	}
+
+	VisualizationPanel.mode = mode;
 
 	VisualizationPanel.distance = distance;
 	VisualizationPanel.iterations = iterations;
@@ -132,11 +170,13 @@ export function createVizualization(extensionUri: vscode.Uri, type: string, dist
 
 	sidebar.clearSelectedNode();
 
-	exportedTreeDataProvider.clearAllNodes();
+	usedByTreeDataProvider.clearAllNodes();
 	requestedTreeDataProvider.clearAllNodes();
+	affectedTreeDataProvider.clearAllNodes();
 
-	exportedTreeDataProvider.refresh();
+	usedByTreeDataProvider.refresh();
 	requestedTreeDataProvider.refresh();
+	affectedTreeDataProvider.refresh();
 
 	VisualizationPanel.createOrShow(extensionUri);
 }
@@ -149,11 +189,13 @@ export function addNodeToRemoved(name: string, recipe: string, id: number) {
 		id: id
 	});
 
-	exportedTreeDataProvider.clearAllNodes();
+	usedByTreeDataProvider.clearAllNodes();
 	requestedTreeDataProvider.clearAllNodes();
+	affectedTreeDataProvider.clearAllNodes();
 
-	exportedTreeDataProvider.refresh();
+	usedByTreeDataProvider.refresh();
 	requestedTreeDataProvider.refresh();
+	affectedTreeDataProvider.refresh();
 }
 
 export function returnToVisualization(name: string) {
@@ -162,11 +204,13 @@ export function returnToVisualization(name: string) {
 
 	sidebar.clearSelectedNode();
 
-	exportedTreeDataProvider.clearAllNodes();
+	usedByTreeDataProvider.clearAllNodes();
 	requestedTreeDataProvider.clearAllNodes();
+	affectedTreeDataProvider.clearAllNodes();
 
-	exportedTreeDataProvider.refresh();
+	usedByTreeDataProvider.refresh();
 	requestedTreeDataProvider.refresh();
+	affectedTreeDataProvider.refresh();
 
 	VisualizationPanel.currentPanel?.getWebView().postMessage({
 		command: "return-node-v",
@@ -181,15 +225,23 @@ export function exportSVG() {
 	});
 }
 
-export function selectNode(node: Node, exported: { name: string; recipe: string; is_removed: number; }[], requested: { name: string; recipe: string; is_removed: number; }[]) {
+export function showLegend(legendData: { license: string;color: string; }[]) {
+	legend.showLegend(legendData);
+}
+
+export function selectNode(node: Node, used_by: { name: string; recipe: string; is_removed: number; }[],
+	requested: { name: string; recipe: string; is_removed: number; }[], affected: { name: string; recipe: string; is_removed: number; }[]) {
 	sidebar.selectNode(node);
 
-	exportedTreeDataProvider.clearAllNodes();
+	usedByTreeDataProvider.clearAllNodes();
 	requestedTreeDataProvider.clearAllNodes();
+	affectedTreeDataProvider.clearAllNodes();
 
-	exportedTreeDataProvider.updateNodes(exported);
+	usedByTreeDataProvider.updateNodes(used_by);
 	requestedTreeDataProvider.updateNodes(requested);
+	affectedTreeDataProvider.updateNodes(affected);
 	
-	exportedTreeDataProvider.refresh();
+	usedByTreeDataProvider.refresh();
 	requestedTreeDataProvider.refresh();
+	affectedTreeDataProvider.refresh();
 }

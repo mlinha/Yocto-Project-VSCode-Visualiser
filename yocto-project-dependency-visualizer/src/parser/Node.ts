@@ -5,6 +5,7 @@ export class Node implements GraphElement {
     private id: number;
     private name: string;
     private recipe: string;
+    private license: string;
 
     /**
      *
@@ -13,6 +14,7 @@ export class Node implements GraphElement {
         this.id = id;
         this.name = name;
         this.recipe = "";
+        this.license = "";
     }
 
     public getId(): number {
@@ -29,5 +31,13 @@ export class Node implements GraphElement {
 
     public setRecipe(recipe: string) {
         this.recipe = recipe;
+    }
+    
+    public getLicense(): string {
+        return this.license;
+    }
+
+    public setLicense(license: string) {
+        this.license = license;
     }  
 }

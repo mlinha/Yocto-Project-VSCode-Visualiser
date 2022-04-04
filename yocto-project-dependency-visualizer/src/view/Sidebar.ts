@@ -43,7 +43,7 @@ export class Sidebar implements vscode.WebviewViewProvider {
                         vscode.window.showErrorMessage("Invalid force settings!");
                         return;
                     }
-                    createVizualization(this._extensionUri, data.type, data.distance, data.iterations, data.strength);
+                    createVizualization(this._extensionUri, data.type, data.distance, data.iterations, data.strength, data.mode);
                     break;
                 }
                 case "remove-selected-s": {
@@ -164,6 +164,12 @@ export class Sidebar implements vscode.WebviewViewProvider {
                         <option value="do_prepare_recipe_sysroot">do_prepare_recipe_sysroot</option>
                         <option value="do_unpack">do_unpack</option>
                         <option value="do_populate_sysroot">do_populate_sysroot</option>
+                    </select>
+                    <h4>Mode:</h4>
+                    <select id="mode_type">
+                        <option value="default">DEFAULT</option>
+                        <option value="licenses">Licenses</option>
+                        <option value="affected_nodes">Affected nodes</option>
                     </select>
                     <br>
                     <br>

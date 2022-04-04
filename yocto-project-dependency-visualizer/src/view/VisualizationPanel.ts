@@ -1,6 +1,6 @@
 import { writeFileSync } from "fs";
 import * as vscode from "vscode";
-import { getNonce, selectNode } from "../extension";
+import { getNonce, selectNode, showLegend } from "../extension";
 import { Node } from "../parser/Node";
 
 export class VisualizationPanel {
@@ -16,6 +16,7 @@ export class VisualizationPanel {
     private _disposables: vscode.Disposable[] = [];
 
     public static graphString: string;
+    public static mode: string;
 
     public static distance: number;
     public static iterations: number;
@@ -108,7 +109,7 @@ export class VisualizationPanel {
 
                     console.log(data);
 
-                    selectNode(selectedNode, data.exported, data.requested);
+                    selectNode(selectedNode, data.used_by, data.requested, data.affected);
 
                     break;
                 }
@@ -122,6 +123,11 @@ export class VisualizationPanel {
                         }
                     });
 
+                    break;
+                }
+                case "show-legend-v": {
+                    showLegend(data.legend);
+                    console.log(data.legend);
                     break;
                 }
             }
@@ -176,6 +182,7 @@ export class VisualizationPanel {
                 <div class="chart">
                     <div id="visualization"></div>
                     <input type="hidden" id="graph" name="graph" value='${VisualizationPanel.graphString}''>
+                    <input type="hidden" id="mode" name="mode" value='${VisualizationPanel.mode}''>
                     <input type="hidden" id="distance" value="${VisualizationPanel.distance}">
                     <input type="hidden" id="iterations" value="${VisualizationPanel.iterations}">
                     <input type="hidden" id="strength" value="${VisualizationPanel.strength}">

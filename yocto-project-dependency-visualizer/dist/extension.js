@@ -6,7 +6,7 @@
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.selectNode = exports.exportSVG = exports.returnToVisualization = exports.addNodeToRemoved = exports.createVizualization = exports.getNonce = exports.deactivate = exports.activate = void 0;
+exports.selectNode = exports.showLegend = exports.exportSVG = exports.returnToVisualization = exports.addNodeToRemoved = exports.createVizualization = exports.getNonce = exports.deactivate = exports.activate = void 0;
 const vscode = __webpack_require__(1);
 const cp = __webpack_require__(2);
 const Sidebar_1 = __webpack_require__(3);
@@ -17,17 +17,22 @@ const RemovedTreeDataProvider_1 = __webpack_require__(13);
 const constants_1 = __webpack_require__(4);
 const helpers_1 = __webpack_require__(5);
 const ConnectionsTreeDataProvider_1 = __webpack_require__(15);
+const Legend_1 = __webpack_require__(16);
 var removedTreeDataProvider;
-var exportedTreeDataProvider;
+var usedByTreeDataProvider;
 var requestedTreeDataProvider;
+var affectedTreeDataProvider;
 var sidebar;
+var legend;
 function activate(context) {
     sidebar = new Sidebar_1.Sidebar(context.extensionUri);
+    legend = new Legend_1.Legend(context.extensionUri);
     removedTreeDataProvider = new RemovedTreeDataProvider_1.RemovedTreeDataProvider();
-    exportedTreeDataProvider = new ConnectionsTreeDataProvider_1.ConnectionsTreeDataProvider();
+    usedByTreeDataProvider = new ConnectionsTreeDataProvider_1.ConnectionsTreeDataProvider();
     requestedTreeDataProvider = new ConnectionsTreeDataProvider_1.ConnectionsTreeDataProvider();
+    affectedTreeDataProvider = new ConnectionsTreeDataProvider_1.ConnectionsTreeDataProvider();
     context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
-        createVizualization(context.extensionUri, constants_1.default_type, constants_1.default_distance, constants_1.default_iterations, constants_1.default_strength);
+        createVizualization(context.extensionUri, constants_1.default_type, constants_1.default_distance, constants_1.default_iterations, constants_1.default_strength, constants_1.default_mode);
     }));
     context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.returnNode', (item) => {
         var _a;
@@ -52,9 +57,13 @@ function activate(context) {
         }
     }));
     context.subscriptions.push(vscode.window.registerWebviewViewProvider("visualization-sidebar", sidebar));
+    context.subscriptions.push(vscode.window.registerWebviewViewProvider("visualization-legend", legend));
     context.subscriptions.push(vscode.window.registerTreeDataProvider("removed-list", removedTreeDataProvider));
-    context.subscriptions.push(vscode.window.registerTreeDataProvider("exported-list", exportedTreeDataProvider));
+    context.subscriptions.push(vscode.window.registerTreeDataProvider("used-by-list", usedByTreeDataProvider));
     context.subscriptions.push(vscode.window.registerTreeDataProvider("requested-list", requestedTreeDataProvider));
+    context.subscriptions.push(vscode.window.registerTreeDataProvider("affected-list", affectedTreeDataProvider));
+    vscode.commands.executeCommand('setContext', 'showAffected', false);
+    vscode.commands.executeCommand('setContext', 'showLegend', false);
 }
 exports.activate = activate;
 function deactivate() { }
@@ -85,7 +94,7 @@ function selectNodeFromList(name) {
         name: name
     });
 }
-function createVizualization(extensionUri, type, distance, iterations, strength) {
+function createVizualization(extensionUri, type, distance, iterations, strength, mode) {
     if (vscode.workspace.workspaceFolders !== undefined) {
         const dotPath = vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/task-depends.dot";
         if (!(0, fs_1.existsSync)(dotPath)) {
@@ -93,10 +102,23 @@ function createVizualization(extensionUri, type, distance, iterations, strength)
             callBitbake(vscode.workspace.workspaceFolders[0].uri.fsPath);
         }
         var dotParser = new DotParser_1.DotParser(dotPath);
-        var graphString = dotParser.parseDotFile(type);
+        var graphString = dotParser.parseDotFile(type, mode);
         (0, fs_1.writeFileSync)(vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/graph.json", graphString);
         VisualizationPanel_1.VisualizationPanel.graphString = graphString;
     }
+    if (mode === "affected_nodes") {
+        vscode.commands.executeCommand('setContext', 'showAffected', true);
+    }
+    else {
+        vscode.commands.executeCommand('setContext', 'showAffected', false);
+    }
+    if (mode === "licenses") {
+        vscode.commands.executeCommand('setContext', 'showLegend', true);
+    }
+    else {
+        vscode.commands.executeCommand('setContext', 'showLegend', false);
+    }
+    VisualizationPanel_1.VisualizationPanel.mode = mode;
     VisualizationPanel_1.VisualizationPanel.distance = distance;
     VisualizationPanel_1.VisualizationPanel.iterations = iterations;
     VisualizationPanel_1.VisualizationPanel.strength = strength;
@@ -104,10 +126,12 @@ function createVizualization(extensionUri, type, distance, iterations, strength)
     removedTreeDataProvider.refresh();
     VisualizationPanel_1.VisualizationPanel.kill();
     sidebar.clearSelectedNode();
-    exportedTreeDataProvider.clearAllNodes();
+    usedByTreeDataProvider.clearAllNodes();
     requestedTreeDataProvider.clearAllNodes();
-    exportedTreeDataProvider.refresh();
+    affectedTreeDataProvider.clearAllNodes();
+    usedByTreeDataProvider.refresh();
     requestedTreeDataProvider.refresh();
+    affectedTreeDataProvider.refresh();
     VisualizationPanel_1.VisualizationPanel.createOrShow(extensionUri);
 }
 exports.createVizualization = createVizualization;
@@ -119,10 +143,12 @@ function addNodeToRemoved(name, recipe, id) {
         command: "remove-node-v",
         id: id
     });
-    exportedTreeDataProvider.clearAllNodes();
+    usedByTreeDataProvider.clearAllNodes();
     requestedTreeDataProvider.clearAllNodes();
-    exportedTreeDataProvider.refresh();
+    affectedTreeDataProvider.clearAllNodes();
+    usedByTreeDataProvider.refresh();
     requestedTreeDataProvider.refresh();
+    affectedTreeDataProvider.refresh();
 }
 exports.addNodeToRemoved = addNodeToRemoved;
 function returnToVisualization(name) {
@@ -130,10 +156,12 @@ function returnToVisualization(name) {
     removedTreeDataProvider.removeNode(name);
     removedTreeDataProvider.refresh();
     sidebar.clearSelectedNode();
-    exportedTreeDataProvider.clearAllNodes();
+    usedByTreeDataProvider.clearAllNodes();
     requestedTreeDataProvider.clearAllNodes();
-    exportedTreeDataProvider.refresh();
+    affectedTreeDataProvider.clearAllNodes();
+    usedByTreeDataProvider.refresh();
     requestedTreeDataProvider.refresh();
+    affectedTreeDataProvider.refresh();
     (_a = VisualizationPanel_1.VisualizationPanel.currentPanel) === null || _a === void 0 ? void 0 : _a.getWebView().postMessage({
         command: "return-node-v",
         name: "name"
@@ -148,14 +176,21 @@ function exportSVG() {
     });
 }
 exports.exportSVG = exportSVG;
-function selectNode(node, exported, requested) {
+function showLegend(legendData) {
+    legend.showLegend(legendData);
+}
+exports.showLegend = showLegend;
+function selectNode(node, used_by, requested, affected) {
     sidebar.selectNode(node);
-    exportedTreeDataProvider.clearAllNodes();
+    usedByTreeDataProvider.clearAllNodes();
     requestedTreeDataProvider.clearAllNodes();
-    exportedTreeDataProvider.updateNodes(exported);
+    affectedTreeDataProvider.clearAllNodes();
+    usedByTreeDataProvider.updateNodes(used_by);
     requestedTreeDataProvider.updateNodes(requested);
-    exportedTreeDataProvider.refresh();
+    affectedTreeDataProvider.updateNodes(affected);
+    usedByTreeDataProvider.refresh();
     requestedTreeDataProvider.refresh();
+    affectedTreeDataProvider.refresh();
 }
 exports.selectNode = selectNode;
 
@@ -216,7 +251,7 @@ class Sidebar {
                         vscode.window.showErrorMessage("Invalid force settings!");
                         return;
                     }
-                    (0, extension_1.createVizualization)(this._extensionUri, data.type, data.distance, data.iterations, data.strength);
+                    (0, extension_1.createVizualization)(this._extensionUri, data.type, data.distance, data.iterations, data.strength, data.mode);
                     break;
                 }
                 case "remove-selected-s": {
@@ -315,6 +350,12 @@ class Sidebar {
                         <option value="do_unpack">do_unpack</option>
                         <option value="do_populate_sysroot">do_populate_sysroot</option>
                     </select>
+                    <h4>Mode:</h4>
+                    <select id="mode_type">
+                        <option value="default">DEFAULT</option>
+                        <option value="licenses">Licenses</option>
+                        <option value="affected_nodes">Affected nodes</option>
+                    </select>
                     <br>
                     <br>
                     <h4>Force link distance:</h4>
@@ -353,8 +394,9 @@ exports.Sidebar = Sidebar;
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.default_strength = exports.default_iterations = exports.default_distance = exports.default_type = void 0;
+exports.default_strength = exports.default_iterations = exports.default_distance = exports.default_mode = exports.default_type = void 0;
 exports.default_type = "default";
+exports.default_mode = "default";
 exports.default_distance = 400;
 exports.default_iterations = 1;
 exports.default_strength = -3500;
@@ -414,14 +456,21 @@ const helpers_1 = __webpack_require__(5);
 function parseRecipe(recipe) {
     var additionalInfo = {};
     var data = (0, helpers_1.loadFile)(recipe);
-    data === null || data === void 0 ? void 0 : data.forEach(line => {
+    additionalInfo.licence = "none";
+    if (data === undefined) {
+        return additionalInfo;
+    }
+    for (var i = 0; i < data.length; i++) {
+        console.log(data[i]);
+        var line = data[i];
         if (line.includes("LICENSE")) {
             var lineData = line.split("=");
             if (lineData.length > 1) {
                 additionalInfo.licence = lineData[1].replace('"', "").replace('"', "").trim();
+                break;
             }
         }
-    });
+    }
     return additionalInfo;
 }
 exports.parseRecipe = parseRecipe;
@@ -438,21 +487,23 @@ const typescript_map_1 = __webpack_require__(9);
 const helpers_1 = __webpack_require__(5);
 const Link_1 = __webpack_require__(10);
 const Node_1 = __webpack_require__(11);
+const recipe_parser_1 = __webpack_require__(7);
 class DotParser {
     constructor(dotPath) {
         this.dotPath = dotPath;
     }
-    parseDotFile(type) {
+    parseDotFile(type, mode) {
         var graphString;
+        console.log(mode);
         if (type === "default") {
-            graphString = this.parseDotFileDefault();
+            graphString = this.parseDotFileDefault(mode);
         }
         else {
-            graphString = this.parseDotFileTaskType(type);
+            graphString = this.parseDotFileTaskType(type, mode);
         }
         return graphString;
     }
-    parseDotFileDefault() {
+    parseDotFileDefault(mode) {
         var index = 1;
         var data = (0, helpers_1.loadFile)(this.dotPath);
         var nodes = [];
@@ -495,6 +546,9 @@ class DotParser {
                 if (!nodes.some(rn => rn.getName() == recipeName)) {
                     const node = new Node_1.Node(index, recipeName);
                     node.setRecipe(recipePath);
+                    if (mode === "licenses") {
+                        node.setLicense((0, recipe_parser_1.parseRecipe)((0, helpers_1.getRecipePath)(recipePath)).licence);
+                    }
                     nodes.push(node);
                     index++;
                 }
@@ -505,7 +559,7 @@ class DotParser {
         });
         return this.generateGraphJSON(nodes, links);
     }
-    parseDotFileTaskType(type) {
+    parseDotFileTaskType(type, mode) {
         var index = 1;
         var data = (0, helpers_1.loadFile)(this.dotPath);
         var nodes = [];
@@ -548,6 +602,9 @@ class DotParser {
                 if (!nodes.some(rn => rn.getName() == recipeName)) {
                     const node = new Node_1.Node(index, recipeName);
                     node.setRecipe(recipePath);
+                    if (mode === "licenses") {
+                        node.setLicense((0, recipe_parser_1.parseRecipe)((0, helpers_1.getRecipePath)(recipePath)).licence);
+                    }
                     nodes.push(node);
                     index++;
                 }
@@ -927,6 +984,7 @@ class Node {
         this.id = id;
         this.name = name;
         this.recipe = "";
+        this.license = "";
     }
     getId() {
         return this.id;
@@ -939,6 +997,12 @@ class Node {
     }
     setRecipe(recipe) {
         this.recipe = recipe;
+    }
+    getLicense() {
+        return this.license;
+    }
+    setLicense(license) {
+        this.license = license;
     }
 }
 exports.Node = Node;
@@ -1032,7 +1096,7 @@ class VisualizationPanel {
                         var selectedNode = new Node_1.Node(data.id, data.name);
                         selectedNode.setRecipe(data.recipe);
                         console.log(data);
-                        (0, extension_1.selectNode)(selectedNode, data.exported, data.requested);
+                        (0, extension_1.selectNode)(selectedNode, data.used_by, data.requested, data.affected);
                         break;
                     }
                     case "export-svg-v": {
@@ -1044,6 +1108,11 @@ class VisualizationPanel {
                                 (0, fs_1.writeFileSync)(file.fsPath, '<?xml version="1.0" standalone="no"?>\r\n' + data.svg);
                             }
                         });
+                        break;
+                    }
+                    case "show-legend-v": {
+                        (0, extension_1.showLegend)(data.legend);
+                        console.log(data.legend);
                         break;
                     }
                 }
@@ -1084,6 +1153,7 @@ class VisualizationPanel {
                 <div class="chart">
                     <div id="visualization"></div>
                     <input type="hidden" id="graph" name="graph" value='${VisualizationPanel.graphString}''>
+                    <input type="hidden" id="mode" name="mode" value='${VisualizationPanel.mode}''>
                     <input type="hidden" id="distance" value="${VisualizationPanel.distance}">
                     <input type="hidden" id="iterations" value="${VisualizationPanel.iterations}">
                     <input type="hidden" id="strength" value="${VisualizationPanel.strength}">
@@ -1197,6 +1267,72 @@ class ConnectionsTreeDataProvider {
     }
 }
 exports.ConnectionsTreeDataProvider = ConnectionsTreeDataProvider;
+
+
+/***/ }),
+/* 16 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Legend = void 0;
+const vscode = __webpack_require__(1);
+const extension_1 = __webpack_require__(0);
+class Legend {
+    constructor(_extensionUri) {
+        this._extensionUri = _extensionUri;
+        this.selectedNode = null;
+    }
+    revive(panel) {
+        this._view = panel;
+    }
+    resolveWebviewView(webviewView, context, token) {
+        this._view = webviewView;
+        webviewView.webview.options = {
+            // Allow scripts in the webview
+            enableScripts: true,
+            localResourceRoots: [this._extensionUri],
+        };
+        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+    }
+    showLegend(legendData) {
+        var _a;
+        (_a = this._view) === null || _a === void 0 ? void 0 : _a.webview.postMessage({
+            command: "show-legend-s",
+            legend: legendData
+        });
+    }
+    _getHtmlForWebview(webview) {
+        // // And the uri we use to load this script in the webview
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "legend.js"));
+        // Local path to css styles
+        // Uri to load styles into webview
+        const stylesResetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "reset.css"));
+        const stylesMainUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "vscode.css"));
+        //// Use a nonce to only allow specific scripts to be run
+        const nonce = (0, extension_1.getNonce)();
+        return `<!DOCTYPE html>
+			<html lang="en">
+			<head>
+				<meta charset="UTF-8">
+				<!--
+					Use a content security policy to only allow loading images from https or from our extension directory,
+					and only allow scripts that have a specific nonce.
+                -->
+                <meta http-equiv="Content-Security-Policy" content="img-src https: data:; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
+				<meta name="viewport" content="width=device-width, initial-scale=1.0">
+				<link href="${stylesMainUri}" rel="stylesheet">
+				<link href="${stylesResetUri}" rel="stylesheet">
+			</head>
+            <body>
+                <div id="legend">
+                    <script src="${scriptUri}" type="module" nonce="${nonce}"></script>
+                <div>
+			</body>
+			</html>`;
+    }
+}
+exports.Legend = Legend;
 
 
 /***/ })

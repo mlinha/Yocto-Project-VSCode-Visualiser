@@ -1,9 +1,11 @@
 import { readFileSync } from "fs";
 import { TSMap } from "typescript-map";
-import { loadFile } from "../helpers";
+import { default_mode } from "../constants";
+import { loadFile, getRecipePath } from "../helpers";
 import { GraphElement } from "./GraphElement";
 import { Link } from "./Link";
 import { Node } from "./Node";
+import { parseRecipe } from "./recipe_parser";
 
 export class DotParser {
 
@@ -12,19 +14,20 @@ export class DotParser {
         this.dotPath = dotPath;
     }
 
-    public parseDotFile(type: string): string {
+    public parseDotFile(type: string, mode: string): string {
         var graphString;
+        console.log(mode);
         if (type === "default") {
-            graphString = this.parseDotFileDefault();
+            graphString = this.parseDotFileDefault(mode);
         }
         else {
-            graphString = this.parseDotFileTaskType(type);
+            graphString = this.parseDotFileTaskType(type, mode);
         }
 
         return graphString;
     }
 
-    public parseDotFileDefault(): string{
+    public parseDotFileDefault(mode: string): string{
         var index = 1;
         var data = loadFile(this.dotPath);
         var nodes: Array<GraphElement> = [];
@@ -74,6 +77,9 @@ export class DotParser {
                 if (!nodes.some(rn => (rn as Node).getName() == recipeName)) {
                     const node = new Node(index, recipeName);
                     node.setRecipe(recipePath);
+                    if (mode === "licenses") {
+                        node.setLicense(parseRecipe(getRecipePath(recipePath)).licence);
+                    }
                     nodes.push(node);
                     index++;
                 }
@@ -86,7 +92,7 @@ export class DotParser {
         return this.generateGraphJSON(nodes, links);
     }
 
-    public parseDotFileTaskType(type: string): string {
+    public parseDotFileTaskType(type: string, mode: string): string {
         var index = 1;
         var data = loadFile(this.dotPath);
         var nodes: Array<GraphElement> = [];
@@ -136,6 +142,9 @@ export class DotParser {
                 if (!nodes.some(rn => (rn as Node).getName() == recipeName)) {
                     const node = new Node(index, recipeName);
                     node.setRecipe(recipePath);
+                    if (mode === "licenses") {
+                        node.setLicense(parseRecipe(getRecipePath(recipePath)).licence);
+                    }
                     nodes.push(node);
                     index++;
                 }

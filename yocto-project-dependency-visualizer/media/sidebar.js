@@ -9,10 +9,17 @@ const vscode = acquireVsCodeApi();
 
 function generate() {
   var select = document.getElementById("task_type");
-  var task_type = "do_prepare_recipe_sysroot";
+  var task_type = "";
   if (select !== null) {
     // @ts-ignore
     task_type = select.value;
+  }
+
+  var input_mode = document.getElementById("mode_type");
+  var mode = "";
+  if (input_mode !== null) {
+    // @ts-ignore
+    mode = input_mode.value;
   }
 
   var input_distance = document.getElementById("distance");
@@ -23,14 +30,14 @@ function generate() {
   }
 
   var input_iterations = document.getElementById("iterations");
-  var iterations = "do_prepare_recipe_sysroot";
+  var iterations = "";
   if (input_iterations !== null) {
     // @ts-ignore
     iterations = input_iterations.value;
   }
 
   var input_strength = document.getElementById("strength");
-  var strength = "do_prepare_recipe_sysroot";
+  var strength = "";
   if (input_strength !== null) {
     // @ts-ignore
     strength = input_strength.value;
@@ -39,6 +46,7 @@ function generate() {
   vscode.postMessage({
     command: "visualize-s",
     type: task_type,
+    mode: mode,
     distance: distance,
     iterations: iterations,
     strength: strength
