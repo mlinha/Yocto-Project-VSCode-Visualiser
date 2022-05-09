@@ -1,22 +1,26 @@
-import { loadFile } from "../helpers";
+import { loadFile } from "../support/helpers";
 
+/**
+ * Parse a recipe file and return a dictionary with license information.
+ * @param recipe Path to the recipe file.
+ * @returns Dictionary with license information.
+ */
 export function parseRecipe(recipe: string): { [name: string]: string } {
     var additionalInfo: { [name: string]: string } = {};
     var data = loadFile(recipe);
 
-    additionalInfo.licence = "none";
+    additionalInfo.license = "none";
 
-    if (data === undefined) {
+    if (!data) {
         return additionalInfo;
     }
 
     for (var i = 0; i < data.length; i++) {
-        console.log(data[i]);
         var line = data[i];
-        if (line.includes("LICENSE")) {
-            var lineData = line.split("=");
-            if (lineData.length > 1) {
-                additionalInfo.licence = lineData[1].replace('"', "").replace('"', "").trim();
+        var lineData = line.split("=");
+        if (lineData.length > 1) {
+            if (lineData[0].trim() === "LICENSE") {
+                additionalInfo.license = lineData[1].replace('"', "").replace('"', "").trim();
                 break;
             }
         }

@@ -1,113 +1,145 @@
 import { writeFileSync } from "fs";
 import * as vscode from "vscode";
-import { getNonce, selectNode, showLegend } from "../extension";
-import { Node } from "../parser/Node";
+import { selectNode, setLegendData } from "../extension";
+import { getNonce } from "../support/helpers";
+import { Node } from "../model/Node";
 
+/**
+ * Class representing a panel (tab) with visualization
+ */
 export class VisualizationPanel {
+
     /**
-     * Track the currently panel. Only allow a single panel to exist at a time.
+     * Identifies the type of the WebView panel.
      */
-    public static currentPanel: VisualizationPanel | undefined;
+    public readonly viewType = "visualization";
 
-    public static readonly viewType = "visualization";
+    /**
+     * WebViewPanel instance.
+     */
+    private _panel: vscode.WebviewPanel | undefined;
 
-    private readonly _panel: vscode.WebviewPanel;
+    /**
+     * Extension URI.
+     */
     private readonly _extensionUri: vscode.Uri;
+
+    /**
+     * List of disposables, which should be disposed when the panel is disposed.
+     */
     private _disposables: vscode.Disposable[] = [];
 
-    public static graphString: string;
-    public static mode: string;
+    /**
+     * JSON string with graph data.
+     */
+    private graphString: string | undefined;
 
-    public static distance: number;
-    public static iterations: number;
-    public static strength: number;
+    /**
+     * Mode of analysis.
+     */
+    private mode: string | undefined;
 
-    public static createOrShow(extensionUri: vscode.Uri) {
+    /**
+     * Distance between the nodes (for the force directed algorithm).
+     */
+    private distance: number | undefined;
+
+    /**
+     * Number of iterations (for the force directed algorithm).
+     */
+    private iterations: number | undefined;
+
+    /**
+     * Strength of the force between nodes (for the force directed algorithm).
+     */
+    private strength: number | undefined;
+
+    /**
+     * Stores if window is shown.
+     */
+    private isShown: boolean = false;
+
+    /**
+     * Creates and show a panel or just show if already exists.
+     * @param extensionUri Extension URI.
+     * @returns void
+     */
+    public createAndShow(extensionUri: vscode.Uri): void {
+        this.dispose();
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
 
-        // If we already have a panel, show it.
-        if (VisualizationPanel.currentPanel) {
-            VisualizationPanel.currentPanel._panel.reveal(column);
-            VisualizationPanel.currentPanel._update();
-            return;
-        }
-
-        // Otherwise, create a new panel.
         const panel = vscode.window.createWebviewPanel(
-            VisualizationPanel.viewType,
+            this.viewType,
             "Visualization",
             column || vscode.ViewColumn.One,
             {
-                // Enable javascript in the webview
                 enableScripts: true,
-                
                 retainContextWhenHidden: true,
-
-                // And restrict the webview to only loading content from our extension's `media` directory.
-                localResourceRoots: [
-                    vscode.Uri.joinPath(extensionUri, "media"),
-                    vscode.Uri.joinPath(extensionUri, "out/compiled"),
+                localResourceRoots: [ // only scripts and css file from these folders can be used
+                    vscode.Uri.joinPath(extensionUri, "src", "js_scripts"),
+                    vscode.Uri.joinPath(extensionUri, "styles"),
                 ],
             }
         );
 
-        VisualizationPanel.currentPanel = new VisualizationPanel(panel, extensionUri);
-    }
+        panel.webview.html = this._getHtmlForWebview(panel.webview)
+        this.initMessageReciever(panel);
 
-    public static kill() {
-        VisualizationPanel.currentPanel?.dispose();
-        VisualizationPanel.currentPanel = undefined;
-    }
+        panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
-    public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
-        VisualizationPanel.currentPanel = new VisualizationPanel(panel, extensionUri);
-    }
-
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
         this._panel = panel;
+        this.isShown = true;
+    }
+
+    //public static kill() {
+    //    VisualizationPanel.currentPanel?.dispose();
+    //    VisualizationPanel.currentPanel = undefined;
+    //}
+    //
+    //public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+    //    VisualizationPanel.currentPanel = new VisualizationPanel(panel, extensionUri);
+    //}
+
+    /**
+     * Initialize panel class.
+     * @param extensionUri Extension URI.
+     */
+    public constructor(extensionUri: vscode.Uri) {
         this._extensionUri = extensionUri;
-
-        // Set the webview's initial html content
-        this._update();
-
-        // Listen for when the panel is disposed
-        // This happens when the user closes the panel or when the panel is closed programatically
-        this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
     }
 
-    public dispose() {
-        VisualizationPanel.currentPanel = undefined;
-
-        // Clean up our resources
-        this._panel.dispose();
-
-        while (this._disposables.length) {
-            const x = this._disposables.pop();
-            if (x) {
-                x.dispose();
-            }
-        }
+    /**
+     * Update visualization data of  the panel.
+     * @param graphString JSON string with graph data.
+     * @param mode Mode of analysis.
+     * @param distance Distance between the nodes (for the force directed algorithm).
+     * @param iterations Number of iterations (for the force directed algorithm).
+     * @param strength Strength of the force between nodes (for the force directed algorithm).
+     */
+    public updateData(graphString: string, mode: string, distance: number, iterations: number, strength: number) {
+        this.graphString = graphString;
+        this.mode = mode;
+        this.distance = distance;
+        this.iterations = iterations;
+        this.strength = strength;
     }
 
-    private async _update() {
-        const webview = this._panel.webview;
-
-        this._panel.webview.html = this._getHtmlForWebview(webview);
-        
-        webview.onDidReceiveMessage(async (data) => {
+    /**
+     * Initialize actions for different messages.
+     * @param panel WebView panel.
+     */
+    private initMessageReciever(panel: vscode.WebviewPanel) {
+        panel.webview.onDidReceiveMessage(async (data) => {
             switch (data.command) {
                 case "select-node-v": {
-                    console.log("Name: " + data.name)
                     if (!data.name) {
                         return;
                     }
-                    vscode.window.showInformationMessage(data.name);
+
                     var selectedNode = new Node(data.id, data.name);
                     selectedNode.setRecipe(data.recipe);
-
-                    console.log(data);
 
                     selectNode(selectedNode, data.used_by, data.requested, data.affected);
 
@@ -117,7 +149,7 @@ export class VisualizationPanel {
                     if (!data.svg) {
                         return;
                     }
-                    vscode.window.showSaveDialog({filters: {"Images" : ["svg"]}}).then(file => {
+                    vscode.window.showSaveDialog({ filters: { "Images": ["svg"] } }).then(file => {
                         if (file !== undefined) {
                             writeFileSync(file.fsPath, '<?xml version="1.0" standalone="no"?>\r\n' + data.svg);
                         }
@@ -126,70 +158,139 @@ export class VisualizationPanel {
                     break;
                 }
                 case "show-legend-v": {
-                    showLegend(data.legend);
-                    console.log(data.legend);
+                    setLegendData(data.legend);
+
                     break;
                 }
             }
         });
     }
 
-    public getWebView() {
-        return this._panel.webview;
+    /**
+     * Close the panel and clear resources.
+     */
+    private dispose() {
+        this._panel?.dispose();
+
+        while (this._disposables.length) {
+            const x = this._disposables.pop();
+            if (x) {
+                x.dispose();
+            }
+        }
+
+        this.isShown = false;
     }
 
+    /**
+     * Send message to the visualization.js file that the node with given ID should be removed.
+     * @param id ID of the node which should be removed.
+     */
+    public removeNode(id: number) {
+        this._panel?.webview.postMessage({
+            command: "remove-node-v",
+            id: id
+        });
+    }
+
+    /**
+     * Send message to the visualization.js file that the node with given ID should be returned
+     * to visualization.
+     * @param name Name of the node which should be returned to visualization.
+     */
+    public returnNode(name: string) {
+        this._panel?.webview.postMessage({
+            command: "return-node-v",
+            name: name
+        });
+    }
+
+    /**
+     * Send message to the visualization.js file that the SVG should be exported.
+     */
+    public callExportSVG() {
+        this._panel?.webview.postMessage({
+            command: "call-export-svg-v"
+        });
+    }
+
+    /**
+     * Send message to the visualization.js file that nodes with search string in names should be highlighted.
+     * @param search String which should be used to search for nodes.
+     */
+    public findNodes(search: string) {
+        this._panel?.webview.postMessage({
+            command: "find-nodes-v",
+            search: search
+        });
+    }
+
+    /**
+     * Send message to the visualization.js file that the node from the TreeView should be selected.
+     * @param name Name of the node which should be selected.
+     */
+    public selectNodeFromList(name: string) {
+        this._panel?.webview.postMessage({
+            command: "select-node-from-list-v",
+            name: name
+        });
+    }
+
+    /**
+     * Gets if window is shown.
+     * @returns false if window in not shown else true.
+     */
+    public isWindowShown() {
+        return this.isShown;
+    }
+
+    /**
+     * Create HTML content of the WebView.
+     * @param webview WebView instance.
+     * @returns HTML content.
+     */
     private _getHtmlForWebview(webview: vscode.Webview) {
-        // // And the uri we use to load this script in the webview
         const scriptUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, "media", "visualization.js")
+            vscode.Uri.joinPath(this._extensionUri, "src", "js_scripts", "visualization.js")
         );
 
-        // Local path to css styles
-
-        // Uri to load styles into webview
         const stylesResetUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._extensionUri,
-            "media",
+            "styles",
             "reset.css"
         ));
         const stylesMainUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._extensionUri,
-            "media",
+            "styles",
             "vscode.css"
         ));
-        //const cssUri = webview.asWebviewUri(
-        //  vscode.Uri.joinPath(this._extensionUri, "out", "compiled/hello.css")
-        //);
-        //
-        //// Use a nonce to only allow specific scripts to be run
+
         const nonce = getNonce();
 
         return `<!DOCTYPE html>
 			<html lang="en">
-			<head>
-				<meta charset="UTF-8">
-				<!--
-					Use a content security policy to only allow loading images from https or from our extension directory,
-					and only allow scripts that have a specific nonce.
-                -->
-                <meta http-equiv="Content-Security-Policy" content="img-src https: data:; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
-				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<link href="${stylesMainUri}" rel="stylesheet">
-				<link href="${stylesResetUri}" rel="stylesheet">
-                <script nonce="${nonce}"> </script>
-			</head>
-            <body>
-                <div class="chart">
-                    <div id="visualization"></div>
-                    <input type="hidden" id="graph" name="graph" value='${VisualizationPanel.graphString}''>
-                    <input type="hidden" id="mode" name="mode" value='${VisualizationPanel.mode}''>
-                    <input type="hidden" id="distance" value="${VisualizationPanel.distance}">
-                    <input type="hidden" id="iterations" value="${VisualizationPanel.iterations}">
-                    <input type="hidden" id="strength" value="${VisualizationPanel.strength}">
-                    <script src="${scriptUri}" type="module" nonce="${nonce}"></script>
-                    <script nonce="${nonce}"></script>
-                </div>
-			</body>
+			    <head>
+			    	<meta charset="UTF-8">
+			    	<!--
+			    		Use a content security policy to only allow loading images from https or from our extension directory,
+			    		and only allow scripts that have a specific nonce.
+                    -->
+                    <meta http-equiv="Content-Security-Policy" content="style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
+			    	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			    	<link href="${stylesMainUri}" rel="stylesheet">
+			    	<link href="${stylesResetUri}" rel="stylesheet">
+			    </head>
+                <body>
+                    <div class="chart">
+                        <div id="visualization"></div>
+                        <input type="hidden" id="graph" name="graph" value='${this.graphString}''>
+                        <input type="hidden" id="mode" name="mode" value='${this.mode}''>
+                        <input type="hidden" id="distance" value="${this.distance}">
+                        <input type="hidden" id="iterations" value="${this.iterations}">
+                        <input type="hidden" id="strength" value="${this.strength}">
+                        <script src="${scriptUri}" type="module" nonce="${nonce}"></script>
+                    </div>
+			    </body>
 			</html>`;
     }
 }

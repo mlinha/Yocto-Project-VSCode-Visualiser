@@ -1,50 +1,94 @@
 import * as vscode from "vscode";
-import { getNonce } from "../extension";
-import { Node } from "../parser/Node";
+import { getNonce } from "../support/helpers";
+import { Node } from "../model/Node";
 
+/**
+ * Class representing a legend in the sidebar.
+ */
 export class Legend implements vscode.WebviewViewProvider {
+
     /**
-     * Track the currently panel. Only allow a single panel to exist at a time.
+     * Current WebViewView.
      */
     _view?: vscode.WebviewView;
-    _doc?: vscode.TextDocument;
+    //_doc?: vscode.TextDocument;
+
+    /**
+     * Extension URI.
+     */
     private readonly _extensionUri: vscode.Uri;
-    private selectedNode: Node | null;
+    
+    /**
+     * List of legend elements with name of the license and a color which should be used
+     * for the legend. 
+     */
+    private legendData: { license: string; color: string; }[]
 
+    //public revive(panel: vscode.WebviewView) {
+    //    this._view = panel;
+    //}
 
-    public revive(panel: vscode.WebviewView) {
-        this._view = panel;
-    }
-
-    constructor(_extensionUri: vscode.Uri) {
+    /**
+     * Create an instance of the Legend.
+     * @param _extensionUri Extension URI. 
+     */
+    public constructor(_extensionUri: vscode.Uri) {
         this._extensionUri = _extensionUri;
-        this.selectedNode = null;
+        this.legendData = [];
     }
 
-    public resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext<unknown>, token: vscode.CancellationToken): void | Thenable<void> {
+    /**
+     * Revolves a webview view.
+     * resolveWebviewView is called when a view first becomes visible.
+     * This may happen when the view is first loaded or when the user hides and then shows a view again.
+     * @param webviewView Webview view to restore. The provider should take ownership of this view. 
+     * The provider must set the webview's .html and hook up all webview events it is interested in.
+     */
+    public resolveWebviewView(webviewView: vscode.WebviewView): void {
         this._view = webviewView;
 
         webviewView.webview.options = {
             // Allow scripts in the webview
             enableScripts: true,
 
-            localResourceRoots: [this._extensionUri],
+            localResourceRoots: [
+                vscode.Uri.joinPath(this._extensionUri, "src", "js_scripts"),
+                vscode.Uri.joinPath(this._extensionUri, "styles"),
+            ],
         };
 
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+        
+        this.showLegend();
     }
 
-    public showLegend(legendData: { license: string;color: string; }[]) {
+    /**
+     * Set list of legend elements.
+     * @param legendData List of legend elements.
+     */
+    public setLegendData(legendData: { license: string; color: string; }[]) {
+        this.legendData = legendData;
+    }
+
+    /**
+     * Send message with list of legend elements to the legend.js file.
+     */
+    public showLegend() {
         this._view?.webview.postMessage({
             command: "show-legend-s",
-            legend: legendData
+            legend: this.legendData
         });
     }
 
+    /**
+     * Create HTML content of the WebView.
+     * @param webview WebView instance.
+     * @returns HTML content.
+     */
     private _getHtmlForWebview(webview: vscode.Webview) {
         // // And the uri we use to load this script in the webview
         const scriptUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, "media", "legend.js")
+            vscode.Uri.joinPath(this._extensionUri, "src", "js_scripts", "legend.js")
         );
 
         // Local path to css styles
@@ -52,12 +96,12 @@ export class Legend implements vscode.WebviewViewProvider {
         // Uri to load styles into webview
         const stylesResetUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._extensionUri,
-            "media",
+            "styles",
             "reset.css"
         ));
         const stylesMainUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._extensionUri,
-            "media",
+            "styles",
             "vscode.css"
         ));
 
@@ -66,22 +110,22 @@ export class Legend implements vscode.WebviewViewProvider {
 
         return `<!DOCTYPE html>
 			<html lang="en">
-			<head>
-				<meta charset="UTF-8">
-				<!--
-					Use a content security policy to only allow loading images from https or from our extension directory,
-					and only allow scripts that have a specific nonce.
-                -->
-                <meta http-equiv="Content-Security-Policy" content="img-src https: data:; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
-				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<link href="${stylesMainUri}" rel="stylesheet">
-				<link href="${stylesResetUri}" rel="stylesheet">
-			</head>
-            <body>
-                <div id="legend">
-                    <script src="${scriptUri}" type="module" nonce="${nonce}"></script>
-                <div>
-			</body>
+			    <head>
+			    	<meta charset="UTF-8">
+			    	<!--
+			    		Use a content security policy to only allow loading images from https or from our extension directory,
+			    		and only allow scripts that have a specific nonce.
+                    -->
+                    <meta http-equiv="Content-Security-Policy" content="style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
+			    	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			    	<link href="${stylesMainUri}" rel="stylesheet">
+			    	<link href="${stylesResetUri}" rel="stylesheet">
+			    </head>
+                <body>
+                    <div id="legend">
+                        <script src="${scriptUri}" type="module" nonce="${nonce}"></script>
+                    <div>
+			    </body>
 			</html>`;
     }
 }

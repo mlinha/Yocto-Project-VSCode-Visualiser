@@ -1,12 +1,13 @@
-// This script will be run within the webview itself
-// It cannot access the main VS Code APIs directly.
-
 /**
+ * Instance of the WebView API.
  * @type {any}
  */
 // @ts-ignore
 const vscode = acquireVsCodeApi();
 
+/**
+ * Get input values and send message to the Sidebar class instance to generate the visualization.
+ */
 function generate() {
   var select = document.getElementById("task_type");
   var task_type = "";
@@ -53,6 +54,26 @@ function generate() {
   });
 }
 
+/**
+ * Get input value and send message to the Sidebar class instance to find a node.
+ */
+function findNodes() {
+  var input_search = document.getElementById("search-box");
+  var search = "";
+  if (input_search !== null) {
+    // @ts-ignore
+    search = input_search.value;
+  }
+
+  vscode.postMessage({
+    command: "find-nodes-s",
+    search: search
+  });
+}
+
+/**
+ * Send message to the Sidebar class instance to export to the SVG file.
+ */
 function callExportSVG() {
   vscode.postMessage({
     command: "call-export-svg-s"
@@ -60,9 +81,10 @@ function callExportSVG() {
 }
 
 /**
- * @param {string} name
- * @param {string} recipe
- * @param {string} licence
+ * Set name, recipe and license of the selected node to information elements.
+ * @param {string} name Name of the selected node.
+ * @param {string} recipe Path to the recipe of the selected node.
+ * @param {string} licence Used license of the selected node.
  */
 function selectNode(name, recipe, licence) {
   var selectedElement = document.getElementById("selected-name");
@@ -70,67 +92,84 @@ function selectNode(name, recipe, licence) {
 
   selectedElement = document.getElementById("selected-recipe");
   selectedElement?.replaceChildren(document.createTextNode(recipe));
-  
+
   selectedElement = document.getElementById("selected-licence");
   selectedElement?.replaceChildren(document.createTextNode(licence));
 }
 
+/**
+ * Clear information elements of selected node.
+ */
 function clearSelectedNode() {
   var selectedElement = document.getElementById("selected-name");
   selectedElement?.replaceChildren(document.createTextNode("-none-"));
 
   selectedElement = document.getElementById("selected-recipe");
   selectedElement?.replaceChildren(document.createTextNode("-none-"));
-  
+
   selectedElement = document.getElementById("selected-licence");
   selectedElement?.replaceChildren(document.createTextNode("-none-"));
 }
 
+/**
+ * Send message to the Sidebar class instance that selected node needs to be removed from
+ * the visualization.
+ */
 function removeSelected() {
   vscode.postMessage({
     command: "remove-selected-s",
   });
 }
 
+/**
+ * Send message to the Sidebar class instance that selected node's recipe needs to be opened.
+ */
 function openSelectedRecipe() {
   vscode.postMessage({
     command: "open-selected-recipe-s",
   });
 }
 
-(function () {
-  var button = document.getElementById("generate");
-  if (button !== null) {
-    button.onclick = generate;
-  }
-
-  button = document.getElementById("export");
-  if (button !== null) {
-    button.onclick = callExportSVG;
-  }
-
-  button = document.getElementById("remove-selected");
-  if (button !== null) {
-    button.onclick = removeSelected;
-  }
-  
-  button = document.getElementById("open-recipe");
-  if (button !== null) {
-    button.onclick = openSelectedRecipe;
-  }
-
-  window.addEventListener('message', event => {
-
-    const data = event.data; // The JSON data our extension sent
-    console.log(data)
-    switch (data.command) {
-      case 'select-node-s':
-        console.log(data.name);
-        selectNode(data.name, data.recipe, data.licence);
-        break;
-      case 'clear-selected-node-s':
-        clearSelectedNode();
-        break;
+(
+  /**
+  * Main function of the script. Accept messages. Initialize button on click events.
+  */
+  function () {
+    var button = document.getElementById("generate");
+    if (button !== null) {
+      button.onclick = generate;
     }
-  });
-}());
+
+    button = document.getElementById("export");
+    if (button !== null) {
+      button.onclick = callExportSVG;
+    }
+
+    button = document.getElementById("remove-selected");
+    if (button !== null) {
+      button.onclick = removeSelected;
+    }
+
+    button = document.getElementById("open-recipe");
+    if (button !== null) {
+      button.onclick = openSelectedRecipe;
+    }
+
+    button = document.getElementById("find-nodes");
+    if (button !== null) {
+      button.onclick = findNodes;
+    }
+
+    window.addEventListener('message', event => {
+      const data = event.data;
+      switch (data.command) {
+        case 'select-node-s':
+          selectNode(data.name, data.recipe, data.licence);
+          break;
+        case 'clear-selected-node-s':
+          clearSelectedNode();
+          break;
+      }
+    });
+  }()
+);

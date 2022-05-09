@@ -3,6 +3,8 @@
   "displayName": "Yocto Project Dependency Visualizer",
   "description": "An extension that can be used to visualize dependencies between recipes.",
   "version": "0.0.1",
+  "publisher": "MLinha",
+  "repository": "https://github.com/mlinha/Yocto-Project-VSCode-Visualiser",
   "engines": {
     "vscode": "^1.64.0"
   },
@@ -39,7 +41,7 @@
         {
           "id": "yocto-project-dependency-visualizer-sidebar-view",
           "title": "Yocto Project Dependency Visualizer",
-          "icon": ""
+          "icon": "./media/icon.png"
         }
       ]
     },
@@ -89,7 +91,7 @@
           "command": "yocto-project-dependency-visualizer.openRecipe"
         },
         {
-          "when": "view == requested-list || view == exported-list || view == affected-list",
+          "when": "view == requested-list || view == used-by-list || view == affected-list",
           "command": "yocto-project-dependency-visualizer.selectNodeFromList",
           "group": "inline"
         }

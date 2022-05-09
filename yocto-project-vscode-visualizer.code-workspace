@@ -1,9 +1,7 @@
 {
-	"folders": [
-		{
-			"name": "Yocto-Project-VSCode-Visualiser",
-			"path": "."
-		}
-	],
-	"settings": {}
+    "folders": [
+        {
+            "path": "yocto-project-dependency-visualizer"
+        }
+    ]
 }
