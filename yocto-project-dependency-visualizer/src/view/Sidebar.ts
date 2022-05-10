@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { DEFAULT_DISTANCE, DEFAULT_ITERATIONS, DEFAULT_STRENGTH } from "../support/constants";
 import { addNodeToRemoved, createVizualization, exportSVG, findNodes } from "../extension";
-import { getNonce, getRecipePath } from "../support/helpers";
+import { getNonce, getRecipePath, openRecipe } from "../support/helpers";
 import { Node } from "../model/Node";
 import { parseRecipe } from "../parser/recipe_parser";
 
@@ -54,8 +54,7 @@ export class Sidebar implements vscode.WebviewViewProvider {
             enableScripts: true,
 
             localResourceRoots: [
-                vscode.Uri.joinPath(this._extensionUri, "src", "js_scripts"),
-                vscode.Uri.joinPath(this._extensionUri, "styles"),
+                vscode.Uri.joinPath(this._extensionUri, "media")
             ],
         };
 
@@ -88,10 +87,7 @@ export class Sidebar implements vscode.WebviewViewProvider {
                         return;
                     }
 
-                    var recipePath = getRecipePath(this.selectedNode.getRecipe());
-
-                    vscode.workspace.openTextDocument(recipePath).then(
-                        document => vscode.window.showTextDocument(document));
+                    openRecipe(this.selectedNode.getRecipe());
 
                     break;
                 }
@@ -148,17 +144,17 @@ export class Sidebar implements vscode.WebviewViewProvider {
      */
     private _getHtmlForWebview(webview: vscode.Webview): string {
         const scriptUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, "src", "js_scripts", "sidebar.js")
+            vscode.Uri.joinPath(this._extensionUri, "media", "sidebar.js")
         );
 
         const stylesResetUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._extensionUri,
-            "styles",
+            "media",
             "reset.css"
         ));
         const stylesMainUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._extensionUri,
-            "styles",
+            "media",
             "vscode.css"
         ));
         

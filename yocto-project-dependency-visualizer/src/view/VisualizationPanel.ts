@@ -78,8 +78,7 @@ export class VisualizationPanel {
                 enableScripts: true,
                 retainContextWhenHidden: true,
                 localResourceRoots: [ // only scripts and css file from these folders can be used
-                    vscode.Uri.joinPath(extensionUri, "src", "js_scripts"),
-                    vscode.Uri.joinPath(extensionUri, "styles"),
+                    vscode.Uri.joinPath(extensionUri, "media")
                 ],
             }
         );
@@ -251,17 +250,17 @@ export class VisualizationPanel {
      */
     private _getHtmlForWebview(webview: vscode.Webview) {
         const scriptUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, "src", "js_scripts", "visualization.js")
+            vscode.Uri.joinPath(this._extensionUri, "media", "visualization.js")
         );
 
         const stylesResetUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._extensionUri,
-            "styles",
+            "media",
             "reset.css"
         ));
         const stylesMainUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._extensionUri,
-            "styles",
+            "media",
             "vscode.css"
         ));
 

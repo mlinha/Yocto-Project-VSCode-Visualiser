@@ -6,7 +6,7 @@ import { VisualizationPanel } from './view/VisualizationPanel';
 import { RemovedTreeDataProvider } from "./tree_providers/RemovedTreeDataProvider"
 import { Node } from './model/Node';
 import { DEFAULT_DISTANCE, DEFAULT_ITERATIONS, DEFAULT_MODE, DEFAULT_STRENGTH, DEFAULT_TYPE } from './support/constants';
-import { getRecipePath } from './support/helpers';
+import { getRecipePath, openRecipe } from './support/helpers';
 import { NodeTreeItem } from './tree_providers/NodeTreeItem';
 import { ConnectionsTreeDataProvider } from './tree_providers/ConnectionsTreeDataProvider';
 import { Legend } from './view/Legend';
@@ -75,10 +75,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('yocto-project-dependency-visualizer.openRecipe', (item: NodeTreeItem) => {
 			if (item.getRecipe()?.toString() !== undefined) {
-				var recipePath = getRecipePath(item.getRecipe());
-
-				vscode.workspace.openTextDocument(recipePath).then(
-					document => vscode.window.showTextDocument(document));
+				openRecipe(item.getRecipe())
 			}
 		})
 	);
@@ -322,6 +319,10 @@ export function setLegendData(legendData: { license: string; color: string; }[])
 export function selectNode(node: Node, used_by: { name: string; recipe: string; is_removed: number; }[],
 	requested: { name: string; recipe: string; is_removed: number; }[], affected: { name: string; recipe: string; is_removed: number; }[]) {
 	sidebar.selectNode(node);
+
+	usedByTreeDataProvider.clearAllNodes();
+	requestedTreeDataProvider.clearAllNodes();
+	affectedTreeDataProvider.clearAllNodes();
 
 	usedByTreeDataProvider.updateNodes(used_by);
 	requestedTreeDataProvider.updateNodes(requested);

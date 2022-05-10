@@ -43,11 +43,23 @@ export function getRecipePath(recipe: string): string {
  */
 export function getNonce(): string {
     const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    
-	var text = '';
-	for (let i = 0; i < 32; i++) {
-		text += possible.charAt(Math.floor(Math.random() * possible.length));
-	}
 
-	return text;
+    var text = '';
+    for (let i = 0; i < 32; i++) {
+        text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+
+    return text;
+}
+
+/**
+ * Opens a recipe file.
+ * @param recipe Path to recipe.
+ */
+export function openRecipe(recipe: string) {
+    var recipePath = getRecipePath(recipe);
+
+    vscode.workspace.openTextDocument(recipePath).then(
+        document => vscode.window.showTextDocument(document),
+        () => vscode.window.showErrorMessage("Recipe file cannot be opened!"));
 }

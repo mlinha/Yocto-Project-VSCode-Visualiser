@@ -52,8 +52,7 @@ export class Legend implements vscode.WebviewViewProvider {
             enableScripts: true,
 
             localResourceRoots: [
-                vscode.Uri.joinPath(this._extensionUri, "src", "js_scripts"),
-                vscode.Uri.joinPath(this._extensionUri, "styles"),
+                vscode.Uri.joinPath(this._extensionUri, "media")
             ],
         };
 
@@ -88,7 +87,7 @@ export class Legend implements vscode.WebviewViewProvider {
     private _getHtmlForWebview(webview: vscode.Webview) {
         // // And the uri we use to load this script in the webview
         const scriptUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, "src", "js_scripts", "legend.js")
+            vscode.Uri.joinPath(this._extensionUri, "media", "legend.js")
         );
 
         // Local path to css styles
@@ -96,12 +95,12 @@ export class Legend implements vscode.WebviewViewProvider {
         // Uri to load styles into webview
         const stylesResetUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._extensionUri,
-            "styles",
+            "media",
             "reset.css"
         ));
         const stylesMainUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._extensionUri,
-            "styles",
+            "media",
             "vscode.css"
         ));
 

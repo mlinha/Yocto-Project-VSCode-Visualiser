@@ -388,7 +388,7 @@ function selectNodeAffectedConnections(node) {
     // @ts-ignore
     else if (linkMatrix[d.id + "," + node.id] === 1 && d.id !== node.id) {
       usedByNodes.push({ "name": d.name, "recipe": d.recipe, "is_removed": 0 });
-      addAffectedNodes(affected_nodes, d, node);
+      addAffectedNodes(affected_nodes, d, node, 0);
     }
   });
 
@@ -402,7 +402,7 @@ function selectNodeAffectedConnections(node) {
     // @ts-ignore
     else if (linkMatrix[d.id + "," + node.id] === 1 && d.id !== node.id) {
       usedByNodes.push({ "name": d.name, "recipe": d.recipe, "is_removed": 1 });
-      addAffectedNodes(affected_nodes, d, node);
+      addAffectedNodes(affected_nodes, d, node, 1);
     }
   });
 
@@ -425,12 +425,13 @@ function selectNodeAffectedConnections(node) {
  * that directly or indirectly depend on the starting node.
  * @param {any} node Current node.
  * @param {any} starting_node Starting node.
+ * @param {number} is_removed Stores if noded is removed from visualization.
  */
-function addAffectedNodes(affected_nodes, node, starting_node) {
+function addAffectedNodes(affected_nodes, node, starting_node, is_removed) {
   if (affected_nodes.find((n) => n.name === node.name)) {
     return;
   }
-  affected_nodes.push({ "name": node.name, "recipe": node.recipe, "is_removed": 1 });
+  affected_nodes.push({ "name": node.name, "recipe": node.recipe, "is_removed": is_removed });
 
   // get affected nodes from the JSON with graph data
   graph_data.nodes.forEach(function (/** @type {any} */ d) {
@@ -440,7 +441,7 @@ function addAffectedNodes(affected_nodes, node, starting_node) {
         return;
       }
 
-      addAffectedNodes(affected_nodes, d, starting_node);
+      addAffectedNodes(affected_nodes, d, starting_node, 0);
     }
   });
 
@@ -451,7 +452,7 @@ function addAffectedNodes(affected_nodes, node, starting_node) {
       if (affected_nodes.find((n) => n.name === d.name) && d.id !== starting_node.id) {
         return;
       }
-      addAffectedNodes(affected_nodes, d, starting_node);
+      addAffectedNodes(affected_nodes, d, starting_node, 1);
     }
   });
 }
