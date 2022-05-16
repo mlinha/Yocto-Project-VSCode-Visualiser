@@ -161,6 +161,11 @@ export class VisualizationPanel {
 
                     break;
                 }
+                case "node-not-found-v": {
+                    vscode.window.showInformationMessage("No nodes found!");
+
+                    break;
+                }
             }
         });
     }

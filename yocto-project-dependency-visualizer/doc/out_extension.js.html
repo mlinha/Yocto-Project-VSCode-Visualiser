@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: out/extension.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: out/extension.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.selectNode = exports.setLegendData = exports.exportSVG = exports.returnToVisualization = exports.addNodeToRemoved = exports.createVizualization = exports.activate = void 0;
+const vscode = require("vscode");
+const Sidebar_1 = require("./view/Sidebar");
+const fs_1 = require("fs");
+const DotParser_1 = require("./parser/DotParser");
+const VisualizationPanel_1 = require("./view/VisualizationPanel");
+const RemovedTreeDataProvider_1 = require("./tree_providers/RemovedTreeDataProvider");
+const constants_1 = require("./support/constants");
+const helpers_1 = require("./support/helpers");
+const ConnectionsTreeDataProvider_1 = require("./tree_providers/ConnectionsTreeDataProvider");
+const Legend_1 = require("./view/Legend");
+/**
+ * Tree data provider for removed nodes TreeView
+ */
+var removedTreeDataProvider;
+/**
+ * Tree data provider for nodes that depend on the selected node TreeView
+ */
+var usedByTreeDataProvider;
+/**
+ * Tree data provider for nodes that the selected node depends on TreeView
+ */
+var requestedTreeDataProvider;
+/**
+ * Tree data provider for affected nodes TreeView
+ */
+var affectedTreeDataProvider;
+/**
+ * Sidebar menu
+ */
+var sidebar;
+/**
+ * Legend in the sidebar
+ */
+var legend;
+/**
+ * Main visualization panel
+ */
+var visualizationPanel;
+/**
+ * Activate the extension. Register commands and views.
+ * @param context Extension context.
+ */
+function activate(context) {
+    sidebar = new Sidebar_1.Sidebar(context.extensionUri);
+    legend = new Legend_1.Legend(context.extensionUri);
+    visualizationPanel = new VisualizationPanel_1.VisualizationPanel(context.extensionUri);
+    removedTreeDataProvider = new RemovedTreeDataProvider_1.RemovedTreeDataProvider();
+    usedByTreeDataProvider = new ConnectionsTreeDataProvider_1.ConnectionsTreeDataProvider();
+    requestedTreeDataProvider = new ConnectionsTreeDataProvider_1.ConnectionsTreeDataProvider();
+    affectedTreeDataProvider = new ConnectionsTreeDataProvider_1.ConnectionsTreeDataProvider();
+    context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
+        createVizualization(context.extensionUri, constants_1.DEFAULT_TYPE, constants_1.DEFAULT_DISTANCE, constants_1.DEFAULT_ITERATIONS, constants_1.DEFAULT_STRENGTH, constants_1.DEFAULT_MODE);
+    }));
+    context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.returnNode', (item) => {
+        var _a;
+        if (((_a = item.label) === null || _a === void 0 ? void 0 : _a.toString()) !== undefined) {
+            returnToVisualization(item.label.toString());
+        }
+    }));
+    context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.openRecipe', (item) => {
+        var _a;
+        if (((_a = item.getRecipe()) === null || _a === void 0 ? void 0 : _a.toString()) !== undefined) {
+            var recipePath = (0, helpers_1.getRecipePath)(item.getRecipe());
+            vscode.workspace.openTextDocument(recipePath).then(document => vscode.window.showTextDocument(document));
+        }
+    }));
+    context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.selectNodeFromList', (item) => {
+        var _a;
+        if (item.isRemoved() === 1) {
+            vscode.window.showErrorMessage("Node is in the \"Removed nodes\" list so it cannot be selected!");
+        }
+        else if (((_a = item.label) === null || _a === void 0 ? void 0 : _a.toString()) !== undefined) {
+            selectNodeFromList(item.label.toString());
+        }
+    }));
+    context.subscriptions.push(vscode.window.registerWebviewViewProvider("visualization-sidebar", sidebar, {
+        webviewOptions: {
+            retainContextWhenHidden: true
+        }
+    }));
+    context.subscriptions.push(vscode.window.registerWebviewViewProvider("visualization-legend", legend, {
+        webviewOptions: {
+            retainContextWhenHidden: true
+        }
+    }));
+    context.subscriptions.push(vscode.window.registerTreeDataProvider("removed-list", removedTreeDataProvider));
+    context.subscriptions.push(vscode.window.registerTreeDataProvider("used-by-list", usedByTreeDataProvider));
+    context.subscriptions.push(vscode.window.registerTreeDataProvider("requested-list", requestedTreeDataProvider));
+    context.subscriptions.push(vscode.window.registerTreeDataProvider("affected-list", affectedTreeDataProvider));
+    vscode.commands.executeCommand('setContext', 'showAffected', false);
+    vscode.commands.executeCommand('setContext', 'showLegend', false);
+}
+exports.activate = activate;
+// Example how BitBake could be called
+//function callBitbake(path: string) {
+//	// use linux cd
+//	cp.exec('pushd' + path + " &amp;&amp; dir", (err: any, stdout: any, stderr: any) => {
+//		console.log('stdout: ' + stdout);
+//		console.log('stderr: ' + stderr);
+//		if (err) {
+//			console.log('error: ' + err);
+//		}
+//	});
+//}
+/**
+ * Select node from the list of requested or used by nodes.
+ * @param name Name of the node that will be selected.
+ */
+function selectNodeFromList(name) {
+    visualizationPanel.selectNodeFromList(name);
+}
+/**
+ * Create and show visualization.
+ * @param extensionUri Extension URI.
+ * @param type Type of the BitBake task.
+ * @param distance Distance between the nodes (for the force directed algorithm).
+ * @param iterations Number of iterations (for the force directed algorithm).
+ * @param strength Strength of the force between nodes (for the force directed algorithm).
+ * @param mode Mode of analysis.
+ * @returns void
+ */
+function createVizualization(extensionUri, type, distance, iterations, strength, mode) {
+    var graphString = "";
+    if (vscode.workspace.workspaceFolders !== undefined) {
+        const dotPath = vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/task-depends.dot";
+        if (!(0, fs_1.existsSync)(dotPath)) {
+            //callBitbake(vscode.workspace.workspaceFolders[0].uri.fsPath);
+            vscode.window.showErrorMessage(".dot file not found in first workspace folder! Make sure Yocto Project directory is in the first folder of the workspace!");
+            return;
+        }
+        var dotParser = new DotParser_1.DotParser(dotPath);
+        graphString = dotParser.parseDotFile(type, mode);
+        (0, fs_1.writeFileSync)(vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/graph.json", graphString);
+    }
+    if (graphString === "") {
+        vscode.window.showErrorMessage("No graph data loaded!");
+        return;
+    }
+    if (mode === "affected_nodes") {
+        vscode.commands.executeCommand('setContext', 'showAffected', true);
+    }
+    else {
+        vscode.commands.executeCommand('setContext', 'showAffected', false);
+    }
+    if (mode === "licenses") {
+        vscode.commands.executeCommand('setContext', 'showLegend', true);
+    }
+    else {
+        vscode.commands.executeCommand('setContext', 'showLegend', false);
+    }
+    visualizationPanel.updateData(graphString, mode, distance, iterations, strength);
+    removedTreeDataProvider.clearAllNodes();
+    removedTreeDataProvider.refresh();
+    sidebar.clearSelectedNode();
+    usedByTreeDataProvider.clearAllNodes();
+    requestedTreeDataProvider.clearAllNodes();
+    affectedTreeDataProvider.clearAllNodes();
+    usedByTreeDataProvider.refresh();
+    requestedTreeDataProvider.refresh();
+    affectedTreeDataProvider.refresh();
+    visualizationPanel.createOrShow(extensionUri);
+}
+exports.createVizualization = createVizualization;
+/**
+ * Add node to the removed nodes TreeView.
+ * @param name Name of the node to be removed.
+ * @param recipe Path to the recipe of the node to be removed.
+ * @param id ID of the node to be removed.
+ */
+function addNodeToRemoved(name, recipe, id) {
+    removedTreeDataProvider.addNode(name, recipe);
+    removedTreeDataProvider.refresh();
+    visualizationPanel.removeNode(id);
+    usedByTreeDataProvider.clearAllNodes();
+    requestedTreeDataProvider.clearAllNodes();
+    affectedTreeDataProvider.clearAllNodes();
+    usedByTreeDataProvider.refresh();
+    requestedTreeDataProvider.refresh();
+    affectedTreeDataProvider.refresh();
+}
+exports.addNodeToRemoved = addNodeToRemoved;
+/**
+ * Return node from the TreeView of removed nodes back to visualization.
+ * @param name Name of the node to be removed.
+ */
+function returnToVisualization(name) {
+    removedTreeDataProvider.removeNode(name);
+    removedTreeDataProvider.refresh();
+    sidebar.clearSelectedNode();
+    usedByTreeDataProvider.clearAllNodes();
+    requestedTreeDataProvider.clearAllNodes();
+    affectedTreeDataProvider.clearAllNodes();
+    usedByTreeDataProvider.refresh();
+    requestedTreeDataProvider.refresh();
+    affectedTreeDataProvider.refresh();
+    visualizationPanel.returnNode(name);
+}
+exports.returnToVisualization = returnToVisualization;
+/**
+ * Export the visualization SVG.
+ */
+function exportSVG() {
+    visualizationPanel.callExportSVG();
+}
+exports.exportSVG = exportSVG;
+/**
+ * Set data for the legend.
+ * @param legendData Legend data to be set.
+ */
+function setLegendData(legendData) {
+    legend.setLegendData(legendData);
+    legend.showLegend();
+}
+exports.setLegendData = setLegendData;
+/**
+ * Select node from visualization.
+ * @param node Node to be selected.
+ * @param used_by List of nodes that request the selected node.
+ * @param requested List of nodes that the selected node reauests.
+ * @param affected List of node directly or inderectly depenedent on the selected node.
+ */
+function selectNode(node, used_by, requested, affected) {
+    sidebar.selectNode(node);
+    usedByTreeDataProvider.clearAllNodes();
+    requestedTreeDataProvider.clearAllNodes();
+    affectedTreeDataProvider.clearAllNodes();
+    usedByTreeDataProvider.updateNodes(used_by);
+    requestedTreeDataProvider.updateNodes(requested);
+    affectedTreeDataProvider.updateNodes(affected);
+    usedByTreeDataProvider.refresh();
+    requestedTreeDataProvider.refresh();
+    affectedTreeDataProvider.refresh();
+}
+exports.selectNode = selectNode;
+//# sourceMappingURL=extension.js.map</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ConnectionsTreeDataProvider.html">ConnectionsTreeDataProvider</a></li><li><a href="DotParser.html">DotParser</a></li><li><a href="Legend.html">Legend</a></li><li><a href="Link.html">Link</a></li><li><a href="Node.html">Node</a></li><li><a href="NodeTreeItem.html">NodeTreeItem</a></li><li><a href="RemovedTreeDataProvider.html">RemovedTreeDataProvider</a></li><li><a href="Sidebar.html">Sidebar</a></li><li><a href="VisualizationPanel.html">VisualizationPanel</a></li></ul><h3>Global</h3><ul><li><a href="global.html#activate">activate</a></li><li><a href="global.html#addAffectedNodes">addAffectedNodes</a></li><li><a href="global.html#addNodeToRemoved">addNodeToRemoved</a></li><li><a href="global.html#affectedTreeDataProvider">affectedTreeDataProvider</a></li><li><a href="global.html#arrowInit">arrowInit</a></li><li><a href="global.html#BASE_AFFECTED_NODE_COLOR">BASE_AFFECTED_NODE_COLOR</a></li><li><a href="global.html#BASE_FOUND_NODE_COLOR">BASE_FOUND_NODE_COLOR</a></li><li><a href="global.html#BASE_LINK_COLOR">BASE_LINK_COLOR</a></li><li><a href="global.html#BASE_NODE_COLOR">BASE_NODE_COLOR</a></li><li><a href="global.html#BASE_NODE_NAME_COLOR">BASE_NODE_NAME_COLOR</a></li><li><a href="global.html#BASE_REQUESTED_NODE_COLOR">BASE_REQUESTED_NODE_COLOR</a></li><li><a href="global.html#BASE_SELECTED_NODE_COLOR">BASE_SELECTED_NODE_COLOR</a></li><li><a href="global.html#BASE_USED_BY_COLOR">BASE_USED_BY_COLOR</a></li><li><a href="global.html#callExportSVG">callExportSVG</a></li><li><a href="global.html#clearSelectedNode">clearSelectedNode</a></li><li><a href="global.html#createVizualization">createVizualization</a></li><li><a href="global.html#DEFAULT_DISTANCE">DEFAULT_DISTANCE</a></li><li><a href="global.html#DEFAULT_ITERATIONS">DEFAULT_ITERATIONS</a></li><li><a href="global.html#DEFAULT_MODE">DEFAULT_MODE</a></li><li><a href="global.html#DEFAULT_STRENGTH">DEFAULT_STRENGTH</a></li><li><a href="global.html#DEFAULT_TYPE">DEFAULT_TYPE</a></li><li><a href="global.html#exportSVG">exportSVG</a></li><li><a href="global.html#findNodes">findNodes</a></li><li><a href="global.html#generate">generate</a></li><li><a href="global.html#getNonce">getNonce</a></li><li><a href="global.html#getRecipePath">getRecipePath</a></li><li><a href="global.html#graph_data">graph_data</a></li><li><a href="global.html#graph_links">graph_links</a></li><li><a href="global.html#graph_nodes">graph_nodes</a></li><li><a href="global.html#graph_package_names">graph_package_names</a></li><li><a href="global.html#height">height</a></li><li><a href="global.html#initData">initData</a></li><li><a href="global.html#initMatrix">initMatrix</a></li><li><a href="global.html#initSimulation">initSimulation</a></li><li><a href="global.html#initSVG">initSVG</a></li><li><a href="global.html#labelsUpdate">labelsUpdate</a></li><li><a href="global.html#legend">legend</a></li><li><a href="global.html#LICENSE_COLORS">LICENSE_COLORS</a></li><li><a href="global.html#linkMatrix">linkMatrix</a></li><li><a href="global.html#linksUpdate">linksUpdate</a></li><li><a href="global.html#loadFile">loadFile</a></li><li><a href="global.html#mode">mode</a></li><li><a href="global.html#node_height">node_height</a></li><li><a href="global.html#node_width">node_width</a></li><li><a href="global.html#nodesUpdate">nodesUpdate</a></li><li><a href="global.html#openSelectedRecipe">openSelectedRecipe</a></li><li><a href="global.html#parseRecipe">parseRecipe</a></li><li><a href="global.html#removedLinks">removedLinks</a></li><li><a href="global.html#removedNodes">removedNodes</a></li><li><a href="global.html#removedTreeDataProvider">removedTreeDataProvider</a></li><li><a href="global.html#removeNode">removeNode</a></li><li><a href="global.html#removeSelected">removeSelected</a></li><li><a href="global.html#requestedTreeDataProvider">requestedTreeDataProvider</a></li><li><a href="global.html#returnNode">returnNode</a></li><li><a href="global.html#returnToVisualization">returnToVisualization</a></li><li><a href="global.html#selectNode">selectNode</a></li><li><a href="global.html#selectNodeAffectedConnections">selectNodeAffectedConnections</a></li><li><a href="global.html#selectNodeFromList">selectNodeFromList</a></li><li><a href="global.html#selectNodeNormalConnections">selectNodeNormalConnections</a></li><li><a href="global.html#setAffectedColors">setAffectedColors</a></li><li><a href="global.html#setDimensions">setDimensions</a></li><li><a href="global.html#setLegendData">setLegendData</a></li><li><a href="global.html#setLicensesColors">setLicensesColors</a></li><li><a href="global.html#setSelectedColors">setSelectedColors</a></li><li><a href="global.html#showLegend">showLegend</a></li><li><a href="global.html#sidebar">sidebar</a></li><li><a href="global.html#simulation">simulation</a></li><li><a href="global.html#simulationTicked">simulationTicked</a></li><li><a href="global.html#svg">svg</a></li><li><a href="global.html#used_licenses">used_licenses</a></li><li><a href="global.html#usedByTreeDataProvider">usedByTreeDataProvider</a></li><li><a href="global.html#visualizationPanel">visualizationPanel</a></li><li><a href="global.html#vscode">vscode</a></li><li><a href="global.html#width">width</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Mon May 16 2022 20:57:50 GMT+0200 (Středoevropský letní čas)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

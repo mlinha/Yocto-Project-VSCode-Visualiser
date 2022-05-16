@@ -1,4 +1,7 @@
 #  Change Log
+
+##  0.0.2
+- Added info message that no node was found when looking for recipes
 ##  0.0.1
 - Initial release
 

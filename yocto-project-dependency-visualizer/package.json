@@ -2,7 +2,7 @@
   "name": "yocto-project-dependency-visualizer",
   "displayName": "Yocto Project Dependency Visualizer",
   "description": "An extension that can be used to visualize dependencies between recipes.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "MLinha",
   "repository": "https://github.com/mlinha/Yocto-Project-VSCode-Visualiser",
   "engines": {
@@ -99,8 +99,8 @@
     },
     "commandPalette": [
       {
-          "command": "yocto-project-dependency-visualizer.returnNode",
-          "when": "false"
+        "command": "yocto-project-dependency-visualizer.returnNode",
+        "when": "false"
       },
       {
         "command": "yocto-project-dependency-visualizer.openRecipe",
@@ -110,7 +110,7 @@
         "command": "yocto-project-dependency-visualizer.selectNodeFromList",
         "when": "false"
       }
-  ]
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",

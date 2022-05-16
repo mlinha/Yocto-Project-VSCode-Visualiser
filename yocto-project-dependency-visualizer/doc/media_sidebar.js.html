@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: media/sidebar.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: media/sidebar.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * Instance of the WebView API.
+ * @type {any}
+ */
+// @ts-ignore
+const vscode = acquireVsCodeApi();
+
+/**
+ * Get input values and send message to the Sidebar class instance to generate the visualization.
+ */
+function generate() {
+  var select = document.getElementById("task_type");
+  var task_type = "";
+  if (select !== null) {
+    // @ts-ignore
+    task_type = select.value;
+  }
+
+  var input_mode = document.getElementById("mode_type");
+  var mode = "";
+  if (input_mode !== null) {
+    // @ts-ignore
+    mode = input_mode.value;
+  }
+
+  var input_distance = document.getElementById("distance");
+  var distance = "";
+  if (input_distance !== null) {
+    // @ts-ignore
+    distance = input_distance.value;
+  }
+
+  var input_iterations = document.getElementById("iterations");
+  var iterations = "";
+  if (input_iterations !== null) {
+    // @ts-ignore
+    iterations = input_iterations.value;
+  }
+
+  var input_strength = document.getElementById("strength");
+  var strength = "";
+  if (input_strength !== null) {
+    // @ts-ignore
+    strength = input_strength.value;
+  }
+
+  vscode.postMessage({
+    command: "visualize-s",
+    type: task_type,
+    mode: mode,
+    distance: distance,
+    iterations: iterations,
+    strength: strength
+  });
+}
+
+/**
+ * Get input value and send message to the Sidebar class instance to find a node.
+ */
+function findNodes() {
+  var input_search = document.getElementById("search-box");
+  var search = "";
+  if (input_search !== null) {
+    // @ts-ignore
+    search = input_search.value;
+  }
+
+  vscode.postMessage({
+    command: "find-nodes-s",
+    search: search
+  });
+}
+
+/**
+ * Send message to the Sidebar class instance to export to the SVG file.
+ */
+function callExportSVG() {
+  vscode.postMessage({
+    command: "call-export-svg-s"
+  });
+}
+
+/**
+ * Set name, recipe and license of the selected node to information elements.
+ * @param {string} name Name of the selected node.
+ * @param {string} recipe Path to the recipe of the selected node.
+ * @param {string} licence Used license of the selected node.
+ */
+function selectNode(name, recipe, licence) {
+  var selectedElement = document.getElementById("selected-name");
+  selectedElement?.replaceChildren(document.createTextNode(name));
+
+  selectedElement = document.getElementById("selected-recipe");
+  selectedElement?.replaceChildren(document.createTextNode(recipe));
+
+  selectedElement = document.getElementById("selected-licence");
+  selectedElement?.replaceChildren(document.createTextNode(licence));
+}
+
+/**
+ * Clear information elements of selected node.
+ */
+function clearSelectedNode() {
+  var selectedElement = document.getElementById("selected-name");
+  selectedElement?.replaceChildren(document.createTextNode("-none-"));
+
+  selectedElement = document.getElementById("selected-recipe");
+  selectedElement?.replaceChildren(document.createTextNode("-none-"));
+
+  selectedElement = document.getElementById("selected-licence");
+  selectedElement?.replaceChildren(document.createTextNode("-none-"));
+}
+
+/**
+ * Send message to the Sidebar class instance that selected node needs to be removed from
+ * the visualization.
+ */
+function removeSelected() {
+  vscode.postMessage({
+    command: "remove-selected-s",
+  });
+}
+
+/**
+ * Send message to the Sidebar class instance that selected node's recipe needs to be opened.
+ */
+function openSelectedRecipe() {
+  vscode.postMessage({
+    command: "open-selected-recipe-s",
+  });
+}
+
+(
+  /**
+  * Main function of the script. Accept messages. Initialize button on click events.
+  */
+  function () {
+    var button = document.getElementById("generate");
+    if (button !== null) {
+      button.onclick = generate;
+    }
+
+    button = document.getElementById("export");
+    if (button !== null) {
+      button.onclick = callExportSVG;
+    }
+
+    button = document.getElementById("remove-selected");
+    if (button !== null) {
+      button.onclick = removeSelected;
+    }
+
+    button = document.getElementById("open-recipe");
+    if (button !== null) {
+      button.onclick = openSelectedRecipe;
+    }
+
+    button = document.getElementById("find-nodes");
+    if (button !== null) {
+      button.onclick = findNodes;
+    }
+
+    window.addEventListener('message', event => {
+      const data = event.data;
+      switch (data.command) {
+        case 'select-node-s':
+          selectNode(data.name, data.recipe, data.licence);
+          break;
+        case 'clear-selected-node-s':
+          clearSelectedNode();
+          break;
+      }
+    });
+  }()
+);</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ConnectionsTreeDataProvider.html">ConnectionsTreeDataProvider</a></li><li><a href="DotParser.html">DotParser</a></li><li><a href="Legend.html">Legend</a></li><li><a href="Link.html">Link</a></li><li><a href="Node.html">Node</a></li><li><a href="NodeTreeItem.html">NodeTreeItem</a></li><li><a href="RemovedTreeDataProvider.html">RemovedTreeDataProvider</a></li><li><a href="Sidebar.html">Sidebar</a></li><li><a href="VisualizationPanel.html">VisualizationPanel</a></li></ul><h3>Global</h3><ul><li><a href="global.html#activate">activate</a></li><li><a href="global.html#addAffectedNodes">addAffectedNodes</a></li><li><a href="global.html#addNodeToRemoved">addNodeToRemoved</a></li><li><a href="global.html#affectedTreeDataProvider">affectedTreeDataProvider</a></li><li><a href="global.html#arrowInit">arrowInit</a></li><li><a href="global.html#BASE_AFFECTED_NODE_COLOR">BASE_AFFECTED_NODE_COLOR</a></li><li><a href="global.html#BASE_FOUND_NODE_COLOR">BASE_FOUND_NODE_COLOR</a></li><li><a href="global.html#BASE_LINK_COLOR">BASE_LINK_COLOR</a></li><li><a href="global.html#BASE_NODE_COLOR">BASE_NODE_COLOR</a></li><li><a href="global.html#BASE_NODE_NAME_COLOR">BASE_NODE_NAME_COLOR</a></li><li><a href="global.html#BASE_REQUESTED_NODE_COLOR">BASE_REQUESTED_NODE_COLOR</a></li><li><a href="global.html#BASE_SELECTED_NODE_COLOR">BASE_SELECTED_NODE_COLOR</a></li><li><a href="global.html#BASE_USED_BY_COLOR">BASE_USED_BY_COLOR</a></li><li><a href="global.html#callExportSVG">callExportSVG</a></li><li><a href="global.html#clearSelectedNode">clearSelectedNode</a></li><li><a href="global.html#createVizualization">createVizualization</a></li><li><a href="global.html#DEFAULT_DISTANCE">DEFAULT_DISTANCE</a></li><li><a href="global.html#DEFAULT_ITERATIONS">DEFAULT_ITERATIONS</a></li><li><a href="global.html#DEFAULT_MODE">DEFAULT_MODE</a></li><li><a href="global.html#DEFAULT_STRENGTH">DEFAULT_STRENGTH</a></li><li><a href="global.html#DEFAULT_TYPE">DEFAULT_TYPE</a></li><li><a href="global.html#exportSVG">exportSVG</a></li><li><a href="global.html#findNodes">findNodes</a></li><li><a href="global.html#generate">generate</a></li><li><a href="global.html#getNonce">getNonce</a></li><li><a href="global.html#getRecipePath">getRecipePath</a></li><li><a href="global.html#graph_data">graph_data</a></li><li><a href="global.html#graph_links">graph_links</a></li><li><a href="global.html#graph_nodes">graph_nodes</a></li><li><a href="global.html#graph_package_names">graph_package_names</a></li><li><a href="global.html#height">height</a></li><li><a href="global.html#initData">initData</a></li><li><a href="global.html#initMatrix">initMatrix</a></li><li><a href="global.html#initSimulation">initSimulation</a></li><li><a href="global.html#initSVG">initSVG</a></li><li><a href="global.html#labelsUpdate">labelsUpdate</a></li><li><a href="global.html#legend">legend</a></li><li><a href="global.html#LICENSE_COLORS">LICENSE_COLORS</a></li><li><a href="global.html#linkMatrix">linkMatrix</a></li><li><a href="global.html#linksUpdate">linksUpdate</a></li><li><a href="global.html#loadFile">loadFile</a></li><li><a href="global.html#mode">mode</a></li><li><a href="global.html#node_height">node_height</a></li><li><a href="global.html#node_width">node_width</a></li><li><a href="global.html#nodesUpdate">nodesUpdate</a></li><li><a href="global.html#openSelectedRecipe">openSelectedRecipe</a></li><li><a href="global.html#parseRecipe">parseRecipe</a></li><li><a href="global.html#removedLinks">removedLinks</a></li><li><a href="global.html#removedNodes">removedNodes</a></li><li><a href="global.html#removedTreeDataProvider">removedTreeDataProvider</a></li><li><a href="global.html#removeNode">removeNode</a></li><li><a href="global.html#removeSelected">removeSelected</a></li><li><a href="global.html#requestedTreeDataProvider">requestedTreeDataProvider</a></li><li><a href="global.html#returnNode">returnNode</a></li><li><a href="global.html#returnToVisualization">returnToVisualization</a></li><li><a href="global.html#selectNode">selectNode</a></li><li><a href="global.html#selectNodeAffectedConnections">selectNodeAffectedConnections</a></li><li><a href="global.html#selectNodeFromList">selectNodeFromList</a></li><li><a href="global.html#selectNodeNormalConnections">selectNodeNormalConnections</a></li><li><a href="global.html#setAffectedColors">setAffectedColors</a></li><li><a href="global.html#setDimensions">setDimensions</a></li><li><a href="global.html#setLegendData">setLegendData</a></li><li><a href="global.html#setLicensesColors">setLicensesColors</a></li><li><a href="global.html#setSelectedColors">setSelectedColors</a></li><li><a href="global.html#showLegend">showLegend</a></li><li><a href="global.html#sidebar">sidebar</a></li><li><a href="global.html#simulation">simulation</a></li><li><a href="global.html#simulationTicked">simulationTicked</a></li><li><a href="global.html#svg">svg</a></li><li><a href="global.html#used_licenses">used_licenses</a></li><li><a href="global.html#usedByTreeDataProvider">usedByTreeDataProvider</a></li><li><a href="global.html#visualizationPanel">visualizationPanel</a></li><li><a href="global.html#vscode">vscode</a></li><li><a href="global.html#width">width</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Mon May 16 2022 20:57:50 GMT+0200 (Středoevropský letní čas)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

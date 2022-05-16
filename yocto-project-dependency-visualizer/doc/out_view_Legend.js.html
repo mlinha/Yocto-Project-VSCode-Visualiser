@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: out/view/Legend.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: out/view/Legend.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Legend = void 0;
+const vscode = require("vscode");
+const helpers_1 = require("../support/helpers");
+/**
+ * Class representing a legend in the sidebar.
+ */
+class Legend {
+    //public revive(panel: vscode.WebviewView) {
+    //    this._view = panel;
+    //}
+    /**
+     * Create an instance of the Legend.
+     * @param _extensionUri Extension URI.
+     */
+    constructor(_extensionUri) {
+        this._extensionUri = _extensionUri;
+        this.legendData = [];
+    }
+    /**
+     * Revolves a webview view.
+     * resolveWebviewView is called when a view first becomes visible.
+     * This may happen when the view is first loaded or when the user hides and then shows a view again.
+     * @param webviewView Webview view to restore. The provider should take ownership of this view.
+     * The provider must set the webview's .html and hook up all webview events it is interested in.
+     */
+    resolveWebviewView(webviewView) {
+        this._view = webviewView;
+        webviewView.webview.options = {
+            // Allow scripts in the webview
+            enableScripts: true,
+            localResourceRoots: [
+                vscode.Uri.joinPath(this._extensionUri, "src", "js_scripts"),
+                vscode.Uri.joinPath(this._extensionUri, "styles"),
+            ],
+        };
+        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+        this.showLegend();
+    }
+    /**
+     * Set list of legend elements.
+     * @param legendData List of legend elements.
+     */
+    setLegendData(legendData) {
+        this.legendData = legendData;
+    }
+    /**
+     * Send message with list of legend elements to the legend.js file.
+     */
+    showLegend() {
+        var _a;
+        (_a = this._view) === null || _a === void 0 ? void 0 : _a.webview.postMessage({
+            command: "show-legend-s",
+            legend: this.legendData
+        });
+    }
+    /**
+     * Create HTML content of the WebView.
+     * @param webview WebView instance.
+     * @returns HTML content.
+     */
+    _getHtmlForWebview(webview) {
+        // // And the uri we use to load this script in the webview
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "src", "js_scripts", "legend.js"));
+        // Local path to css styles
+        // Uri to load styles into webview
+        const stylesResetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "styles", "reset.css"));
+        const stylesMainUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "styles", "vscode.css"));
+        //// Use a nonce to only allow specific scripts to be run
+        const nonce = (0, helpers_1.getNonce)();
+        return `&lt;!DOCTYPE html>
+			&lt;html lang="en">
+			    &lt;head>
+			    	&lt;meta charset="UTF-8">
+			    	&lt;!--
+			    		Use a content security policy to only allow loading images from https or from our extension directory,
+			    		and only allow scripts that have a specific nonce.
+                    -->
+                    &lt;meta http-equiv="Content-Security-Policy" content="style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
+			    	&lt;meta name="viewport" content="width=device-width, initial-scale=1.0">
+			    	&lt;link href="${stylesMainUri}" rel="stylesheet">
+			    	&lt;link href="${stylesResetUri}" rel="stylesheet">
+			    &lt;/head>
+                &lt;body>
+                    &lt;div id="legend">
+                        &lt;script src="${scriptUri}" type="module" nonce="${nonce}">&lt;/script>
+                    &lt;div>
+			    &lt;/body>
+			&lt;/html>`;
+    }
+}
+exports.Legend = Legend;
+//# sourceMappingURL=Legend.js.map</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ConnectionsTreeDataProvider.html">ConnectionsTreeDataProvider</a></li><li><a href="DotParser.html">DotParser</a></li><li><a href="Legend.html">Legend</a></li><li><a href="Link.html">Link</a></li><li><a href="Node.html">Node</a></li><li><a href="NodeTreeItem.html">NodeTreeItem</a></li><li><a href="RemovedTreeDataProvider.html">RemovedTreeDataProvider</a></li><li><a href="Sidebar.html">Sidebar</a></li><li><a href="VisualizationPanel.html">VisualizationPanel</a></li></ul><h3>Global</h3><ul><li><a href="global.html#activate">activate</a></li><li><a href="global.html#addAffectedNodes">addAffectedNodes</a></li><li><a href="global.html#addNodeToRemoved">addNodeToRemoved</a></li><li><a href="global.html#affectedTreeDataProvider">affectedTreeDataProvider</a></li><li><a href="global.html#arrowInit">arrowInit</a></li><li><a href="global.html#BASE_AFFECTED_NODE_COLOR">BASE_AFFECTED_NODE_COLOR</a></li><li><a href="global.html#BASE_FOUND_NODE_COLOR">BASE_FOUND_NODE_COLOR</a></li><li><a href="global.html#BASE_LINK_COLOR">BASE_LINK_COLOR</a></li><li><a href="global.html#BASE_NODE_COLOR">BASE_NODE_COLOR</a></li><li><a href="global.html#BASE_NODE_NAME_COLOR">BASE_NODE_NAME_COLOR</a></li><li><a href="global.html#BASE_REQUESTED_NODE_COLOR">BASE_REQUESTED_NODE_COLOR</a></li><li><a href="global.html#BASE_SELECTED_NODE_COLOR">BASE_SELECTED_NODE_COLOR</a></li><li><a href="global.html#BASE_USED_BY_COLOR">BASE_USED_BY_COLOR</a></li><li><a href="global.html#callExportSVG">callExportSVG</a></li><li><a href="global.html#clearSelectedNode">clearSelectedNode</a></li><li><a href="global.html#createVizualization">createVizualization</a></li><li><a href="global.html#DEFAULT_DISTANCE">DEFAULT_DISTANCE</a></li><li><a href="global.html#DEFAULT_ITERATIONS">DEFAULT_ITERATIONS</a></li><li><a href="global.html#DEFAULT_MODE">DEFAULT_MODE</a></li><li><a href="global.html#DEFAULT_STRENGTH">DEFAULT_STRENGTH</a></li><li><a href="global.html#DEFAULT_TYPE">DEFAULT_TYPE</a></li><li><a href="global.html#exportSVG">exportSVG</a></li><li><a href="global.html#findNodes">findNodes</a></li><li><a href="global.html#generate">generate</a></li><li><a href="global.html#getNonce">getNonce</a></li><li><a href="global.html#getRecipePath">getRecipePath</a></li><li><a href="global.html#graph_data">graph_data</a></li><li><a href="global.html#graph_links">graph_links</a></li><li><a href="global.html#graph_nodes">graph_nodes</a></li><li><a href="global.html#graph_package_names">graph_package_names</a></li><li><a href="global.html#height">height</a></li><li><a href="global.html#initData">initData</a></li><li><a href="global.html#initMatrix">initMatrix</a></li><li><a href="global.html#initSimulation">initSimulation</a></li><li><a href="global.html#initSVG">initSVG</a></li><li><a href="global.html#labelsUpdate">labelsUpdate</a></li><li><a href="global.html#legend">legend</a></li><li><a href="global.html#LICENSE_COLORS">LICENSE_COLORS</a></li><li><a href="global.html#linkMatrix">linkMatrix</a></li><li><a href="global.html#linksUpdate">linksUpdate</a></li><li><a href="global.html#loadFile">loadFile</a></li><li><a href="global.html#mode">mode</a></li><li><a href="global.html#node_height">node_height</a></li><li><a href="global.html#node_width">node_width</a></li><li><a href="global.html#nodesUpdate">nodesUpdate</a></li><li><a href="global.html#openSelectedRecipe">openSelectedRecipe</a></li><li><a href="global.html#parseRecipe">parseRecipe</a></li><li><a href="global.html#removedLinks">removedLinks</a></li><li><a href="global.html#removedNodes">removedNodes</a></li><li><a href="global.html#removedTreeDataProvider">removedTreeDataProvider</a></li><li><a href="global.html#removeNode">removeNode</a></li><li><a href="global.html#removeSelected">removeSelected</a></li><li><a href="global.html#requestedTreeDataProvider">requestedTreeDataProvider</a></li><li><a href="global.html#returnNode">returnNode</a></li><li><a href="global.html#returnToVisualization">returnToVisualization</a></li><li><a href="global.html#selectNode">selectNode</a></li><li><a href="global.html#selectNodeAffectedConnections">selectNodeAffectedConnections</a></li><li><a href="global.html#selectNodeFromList">selectNodeFromList</a></li><li><a href="global.html#selectNodeNormalConnections">selectNodeNormalConnections</a></li><li><a href="global.html#setAffectedColors">setAffectedColors</a></li><li><a href="global.html#setDimensions">setDimensions</a></li><li><a href="global.html#setLegendData">setLegendData</a></li><li><a href="global.html#setLicensesColors">setLicensesColors</a></li><li><a href="global.html#setSelectedColors">setSelectedColors</a></li><li><a href="global.html#showLegend">showLegend</a></li><li><a href="global.html#sidebar">sidebar</a></li><li><a href="global.html#simulation">simulation</a></li><li><a href="global.html#simulationTicked">simulationTicked</a></li><li><a href="global.html#svg">svg</a></li><li><a href="global.html#used_licenses">used_licenses</a></li><li><a href="global.html#usedByTreeDataProvider">usedByTreeDataProvider</a></li><li><a href="global.html#visualizationPanel">visualizationPanel</a></li><li><a href="global.html#vscode">vscode</a></li><li><a href="global.html#width">width</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Mon May 16 2022 20:57:50 GMT+0200 (Středoevropský letní čas)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

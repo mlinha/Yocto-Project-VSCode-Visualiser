@@ -1,1 +1,1775 @@
-(()=>{"use strict";var e={112:(e,t,i)=>{Object.defineProperty(t,"__esModule",{value:!0}),t.selectNode=t.setLegendData=t.findNodes=t.exportSVG=t.returnToVisualization=t.addNodeToRemoved=t.createVizualization=t.activate=void 0;const n=i(496),o=i(971),s=i(147),r=i(580),a=i(747),d=i(926),c=i(430),l=i(812),p=i(86),h=i(859);var u,v,f,_,m,w,g;function y(e,t,i,o,a,d){var c="";if(void 0!==n.workspace.workspaceFolders){const e=n.workspace.workspaceFolders[0].uri.fsPath+"/build/task-depends.dot";if(!(0,s.existsSync)(e))return void n.window.showErrorMessage(".dot file not found in first workspace folder! Make sure Yocto Project directory is in the first folder of the workspace!");c=new r.DotParser(e).parseDotFile(t,d),(0,s.writeFileSync)(n.workspace.workspaceFolders[0].uri.fsPath+"/build/graph.json",c)}""!==c?("affected_nodes"===d?n.commands.executeCommand("setContext","showAffected",!0):n.commands.executeCommand("setContext","showAffected",!1),"licenses"===d?n.commands.executeCommand("setContext","showLegend",!0):n.commands.executeCommand("setContext","showLegend",!1),g.updateData(c,d,i,o,a),u.clearAllNodes(),u.refresh(),m.clearSelectedNode(),v.clearAllNodes(),f.clearAllNodes(),_.clearAllNodes(),v.refresh(),f.refresh(),_.refresh(),g.createAndShow(e)):n.window.showErrorMessage("No graph data loaded!")}function b(e){u.removeNode(e),u.refresh(),m.clearSelectedNode(),v.clearAllNodes(),f.clearAllNodes(),_.clearAllNodes(),v.refresh(),f.refresh(),_.refresh(),g.returnNode(e)}t.activate=function(e){m=new o.Sidebar(e.extensionUri),w=new h.Legend(e.extensionUri),g=new a.VisualizationPanel(e.extensionUri),u=new d.RemovedTreeDataProvider,v=new p.ConnectionsTreeDataProvider,f=new p.ConnectionsTreeDataProvider,_=new p.ConnectionsTreeDataProvider,e.subscriptions.push(n.commands.registerCommand("yocto-project-dependency-visualizer.generateVisualization",(()=>{y(e.extensionUri,c.DEFAULT_TYPE,c.DEFAULT_DISTANCE,c.DEFAULT_ITERATIONS,c.DEFAULT_STRENGTH,c.DEFAULT_MODE)}))),e.subscriptions.push(n.commands.registerCommand("yocto-project-dependency-visualizer.returnNode",(e=>{var t;void 0!==(null===(t=e.label)||void 0===t?void 0:t.toString())&&b(e.label.toString())}))),e.subscriptions.push(n.commands.registerCommand("yocto-project-dependency-visualizer.openRecipe",(e=>{var t;void 0!==(null===(t=e.getRecipe())||void 0===t?void 0:t.toString())&&(0,l.openRecipe)(e.getRecipe())}))),e.subscriptions.push(n.commands.registerCommand("yocto-project-dependency-visualizer.selectNodeFromList",(e=>{var t,i;1===e.isRemoved()?n.window.showErrorMessage('Node is in the "Removed nodes" list so it cannot be selected!'):void 0!==(null===(t=e.label)||void 0===t?void 0:t.toString())&&(i=e.label.toString(),g.selectNodeFromList(i))}))),e.subscriptions.push(n.window.registerWebviewViewProvider("visualization-sidebar",m,{webviewOptions:{retainContextWhenHidden:!0}})),e.subscriptions.push(n.window.registerWebviewViewProvider("visualization-legend",w,{webviewOptions:{retainContextWhenHidden:!0}})),e.subscriptions.push(n.window.registerTreeDataProvider("removed-list",u)),e.subscriptions.push(n.window.registerTreeDataProvider("used-by-list",v)),e.subscriptions.push(n.window.registerTreeDataProvider("requested-list",f)),e.subscriptions.push(n.window.registerTreeDataProvider("affected-list",_)),n.commands.executeCommand("setContext","showAffected",!1),n.commands.executeCommand("setContext","showLegend",!1)},t.createVizualization=y,t.addNodeToRemoved=function(e,t,i){u.addNode(e,t),u.refresh(),g.removeNode(i),v.clearAllNodes(),f.clearAllNodes(),_.clearAllNodes(),v.refresh(),f.refresh(),_.refresh()},t.returnToVisualization=b,t.exportSVG=function(){g.callExportSVG()},t.findNodes=function(e){""!=e?g.isWindowShown()?(v.clearAllNodes(),f.clearAllNodes(),_.clearAllNodes(),v.refresh(),f.refresh(),_.refresh(),g.findNodes(e)):n.window.showErrorMessage("No visualization available!"):n.window.showErrorMessage("Empty string cannot be used for search of nodes!")},t.setLegendData=function(e){w.setLegendData(e),w.showLegend()},t.selectNode=function(e,t,i,n){m.selectNode(e),v.clearAllNodes(),f.clearAllNodes(),_.clearAllNodes(),v.updateNodes(t),f.updateNodes(i),_.updateNodes(n),v.refresh(),f.refresh(),_.refresh()}},298:(e,t)=>{Object.defineProperty(t,"__esModule",{value:!0}),t.Link=void 0,t.Link=class{constructor(e,t){this.source=e,this.target=t}}},103:(e,t)=>{Object.defineProperty(t,"__esModule",{value:!0}),t.Node=void 0,t.Node=class{constructor(e,t){this.id=e,this.name=t,this.recipe="",this.license=""}getId(){return this.id}getName(){return this.name}getRecipe(){return this.recipe}setRecipe(e){this.recipe=e}getLicense(){return this.license}setLicense(e){this.license=e}}},580:(e,t,i)=>{Object.defineProperty(t,"__esModule",{value:!0}),t.DotParser=void 0;const n=i(771),o=i(430),s=i(812),r=i(298),a=i(103),d=i(924);t.DotParser=class{constructor(e){this.dotPath=e}parseDotFile(e,t){return e===o.DEFAULT_TYPE?this.parseDotFileDefault(t):this.parseDotFileTaskType(e,t)}parseDotFileDefault(e){var t=1,i=(0,s.loadFile)(this.dotPath),n=[],o=[];return null==i||i.forEach((i=>{var s=i.split(" -> ");if(s[0].includes("do_prepare_recipe_sysroot")&&!s[0].includes("label=")&&s[1].includes("do_populate_sysroot")){const e=s[0].replace(".do_prepare_recipe_sysroot","").replace('"',"").replace('"',"").trim(),i=s[1].replace(".do_populate_sysroot","").replace('"',"").replace('"',"").trim();i!==e&&(t=this.addGraphData(n,o,e,i,t))}else if(s[0].includes("label=")){const o=(s=i.split(" "))[0].split(".")[0].replace('"',"").replace('"',"").trim();t=this.setNodeRecipe(n,s[2],o,t,e)}})),this.generateGraphJSON(n,o)}parseDotFileTaskType(e,t){var i=1,n=(0,s.loadFile)(this.dotPath),o=[],r=[];return null==n||n.forEach((n=>{var s=n.split(" -> ");if(s[0].includes(e)&&!s[0].includes("label=")){const t=s[0].replace("."+e,"").replace('"',"").replace('"',"").trim(),n=s[1].split(".")[0].replace('"',"").replace('"',"").trim();n!==t&&(i=this.addGraphData(o,r,t,n,i))}else if(s[0].includes("label=")){const e=(s=n.split(" "))[0].split(".")[0].replace('"',"").replace('"',"").trim();i=this.setNodeRecipe(o,s[2],e,i,t)}})),this.generateGraphJSON(o,r)}addGraphData(e,t,i,n,o){var s,d;e.some((e=>e.getName()==i))?s=e.find((e=>e.getName()==i)).getId():(e.push(new a.Node(o,i)),s=o,o++),e.some((e=>e.getName()==n))?d=e.find((e=>e.getName()==n)).getId():(e.push(new a.Node(o,n)),d=o,o++);const c=new r.Link(s,d);return t.push(c),o}setNodeRecipe(e,t,i,n,o){var r=t.replace("[","").replace("]","").replace("label=","").replace('"',"").replace('"',"").trim().split(/\\n|:/),c=r[r.length-1];if(e.some((e=>e.getName()==i))){const t=e.find((e=>e.getName()==i));t.setRecipe(c),"licenses"===o&&t.setLicense((0,d.parseRecipe)((0,s.getRecipePath)(c)).license)}else{const t=new a.Node(n,i);t.setRecipe(c),"licenses"===o&&t.setLicense((0,d.parseRecipe)((0,s.getRecipePath)(c)).license),e.push(t),n++}return n}generateGraphJSON(e,t){var i=new n.TSMap;return i.set("nodes",e),i.set("links",t),JSON.stringify(i.toJSON())}}},924:(e,t,i)=>{Object.defineProperty(t,"__esModule",{value:!0}),t.parseRecipe=void 0;const n=i(812);t.parseRecipe=function(e){var t={},i=(0,n.loadFile)(e);if(t.license="none",!i)return t;for(var o=0;o<i.length;o++){var s=i[o].split("=");if(s.length>1&&"LICENSE"===s[0].trim()){t.license=s[1].replace('"',"").replace('"',"").trim();break}}return t}},430:(e,t)=>{Object.defineProperty(t,"__esModule",{value:!0}),t.DEFAULT_STRENGTH=t.DEFAULT_ITERATIONS=t.DEFAULT_DISTANCE=t.DEFAULT_MODE=t.DEFAULT_TYPE=void 0,t.DEFAULT_TYPE="default",t.DEFAULT_MODE="default",t.DEFAULT_DISTANCE=400,t.DEFAULT_ITERATIONS=1,t.DEFAULT_STRENGTH=-3500},812:(e,t,i)=>{Object.defineProperty(t,"__esModule",{value:!0}),t.openRecipe=t.getNonce=t.getRecipePath=t.loadFile=void 0;const n=i(147),o=i(496);function s(e){var t=e;if(void 0!==o.workspace.workspaceFolders){const i=o.workspace.workspaceFolders[0].uri.fsPath;if(i.includes("wsl")){const n=i.replace("\\\\","").split("\\");t="\\\\"+n[0]+"\\"+n[1]+"\\"+e.replace("/","\\")}}return t}t.loadFile=function(e){var t;try{t=(0,n.readFileSync)(e,"utf8")}catch(e){t=void 0}return null==t?void 0:t.split("\n")},t.getRecipePath=s,t.getNonce=function(){const e="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";var t="";for(let i=0;i<32;i++)t+=e.charAt(Math.floor(Math.random()*e.length));return t},t.openRecipe=function(e){var t=s(e);o.workspace.openTextDocument(t).then((e=>o.window.showTextDocument(e)),(()=>o.window.showErrorMessage("Recipe file cannot be opened!")))}},86:(e,t,i)=>{Object.defineProperty(t,"__esModule",{value:!0}),t.ConnectionsTreeDataProvider=void 0;const n=i(496),o=i(816);t.ConnectionsTreeDataProvider=class{constructor(){this._onDidChangeTreeData=new n.EventEmitter,this.onDidChangeTreeData=this._onDidChangeTreeData.event,this.data=[]}refresh(){this._onDidChangeTreeData.fire()}getTreeItem(e){return e}getChildren(e){return this.data}updateNodes(e){e.forEach((e=>{this.data.push(new o.NodeTreeItem(e.name,e.recipe,e.is_removed))}))}clearAllNodes(){this.data=[]}}},816:(e,t,i)=>{Object.defineProperty(t,"__esModule",{value:!0}),t.NodeTreeItem=void 0;const n=i(496);class o extends n.TreeItem{constructor(e,t,i){super(e,n.TreeItemCollapsibleState.None),this.recipe=t,this.is_removed=i,this.tooltip=this.recipe}isRemoved(){return this.is_removed}getRecipe(){return this.recipe}}t.NodeTreeItem=o},926:(e,t,i)=>{Object.defineProperty(t,"__esModule",{value:!0}),t.RemovedTreeDataProvider=void 0;const n=i(496),o=i(816);t.RemovedTreeDataProvider=class{constructor(){this._onDidChangeTreeData=new n.EventEmitter,this.onDidChangeTreeData=this._onDidChangeTreeData.event,this.data=[]}refresh(){this._onDidChangeTreeData.fire()}getTreeItem(e){return e}getChildren(e){return this.data}addNode(e,t){this.data.push(new o.NodeTreeItem(e,t,0))}removeNode(e){var t=this.data.findIndex((t=>t.label===e));this.data.splice(t,1)}clearAllNodes(){this.data=[]}}},859:(e,t,i)=>{Object.defineProperty(t,"__esModule",{value:!0}),t.Legend=void 0;const n=i(496),o=i(812);t.Legend=class{constructor(e){this._extensionUri=e,this.legendData=[]}resolveWebviewView(e){this._view=e,e.webview.options={enableScripts:!0,localResourceRoots:[n.Uri.joinPath(this._extensionUri,"media")]},e.webview.html=this._getHtmlForWebview(e.webview),this.showLegend()}setLegendData(e){this.legendData=e}showLegend(){var e;null===(e=this._view)||void 0===e||e.webview.postMessage({command:"show-legend-s",legend:this.legendData})}_getHtmlForWebview(e){const t=e.asWebviewUri(n.Uri.joinPath(this._extensionUri,"media","legend.js")),i=e.asWebviewUri(n.Uri.joinPath(this._extensionUri,"media","reset.css")),s=e.asWebviewUri(n.Uri.joinPath(this._extensionUri,"media","vscode.css")),r=(0,o.getNonce)();return`<!DOCTYPE html>\n\t\t\t<html lang="en">\n\t\t\t    <head>\n\t\t\t    \t<meta charset="UTF-8">\n\t\t\t    \t\x3c!--\n\t\t\t    \t\tUse a content security policy to only allow loading images from https or from our extension directory,\n\t\t\t    \t\tand only allow scripts that have a specific nonce.\n                    --\x3e\n                    <meta http-equiv="Content-Security-Policy" content="style-src 'unsafe-inline' ${e.cspSource}; script-src 'nonce-${r}';">\n\t\t\t    \t<meta name="viewport" content="width=device-width, initial-scale=1.0">\n\t\t\t    \t<link href="${s}" rel="stylesheet">\n\t\t\t    \t<link href="${i}" rel="stylesheet">\n\t\t\t    </head>\n                <body>\n                    <div id="legend">\n                        <script src="${t}" type="module" nonce="${r}"><\/script>\n                    <div>\n\t\t\t    </body>\n\t\t\t</html>`}}},971:function(e,t,i){var n=this&&this.__awaiter||function(e,t,i,n){return new(i||(i=Promise))((function(o,s){function r(e){try{d(n.next(e))}catch(e){s(e)}}function a(e){try{d(n.throw(e))}catch(e){s(e)}}function d(e){var t;e.done?o(e.value):(t=e.value,t instanceof i?t:new i((function(e){e(t)}))).then(r,a)}d((n=n.apply(e,t||[])).next())}))};Object.defineProperty(t,"__esModule",{value:!0}),t.Sidebar=void 0;const o=i(496),s=i(430),r=i(112),a=i(812),d=i(924);t.Sidebar=class{constructor(e){this._extensionUri=e}resolveWebviewView(e){this._view=e,e.webview.options={enableScripts:!0,localResourceRoots:[o.Uri.joinPath(this._extensionUri,"media")]},e.webview.html=this._getHtmlForWebview(e.webview),e.webview.onDidReceiveMessage((e=>n(this,void 0,void 0,(function*(){switch(e.command){case"visualize-s":if(""==e.distance||""==e.iterations||""==e.strength)return void o.window.showErrorMessage("Invalid force settings!");(0,r.createVizualization)(this._extensionUri,e.type,e.distance,e.iterations,e.strength,e.mode);break;case"remove-selected-s":if(!this.selectedNode)return void o.window.showInformationMessage("No node selected!");(0,r.addNodeToRemoved)(this.selectedNode.getName(),this.selectedNode.getRecipe(),this.selectedNode.getId()),this.clearSelectedNode();break;case"open-selected-recipe-s":if(!this.selectedNode)return void o.window.showInformationMessage("No node selected!");(0,a.openRecipe)(this.selectedNode.getRecipe());break;case"call-export-svg-s":(0,r.exportSVG)();break;case"find-nodes-s":(0,r.findNodes)(e.search),this.clearSelectedNode()}}))))}selectNode(e){var t;this.selectedNode=e;var i=(0,a.getRecipePath)(this.selectedNode.getRecipe()),n=this.selectedNode.getLicense();""===n&&(n=(0,d.parseRecipe)(i).license),null===(t=this._view)||void 0===t||t.webview.postMessage({command:"select-node-s",name:e.getName(),recipe:e.getRecipe(),licence:n})}clearSelectedNode(){var e;this.selectedNode=void 0,null===(e=this._view)||void 0===e||e.webview.postMessage({command:"clear-selected-node-s"})}_getHtmlForWebview(e){const t=e.asWebviewUri(o.Uri.joinPath(this._extensionUri,"media","sidebar.js")),i=e.asWebviewUri(o.Uri.joinPath(this._extensionUri,"media","reset.css")),n=e.asWebviewUri(o.Uri.joinPath(this._extensionUri,"media","vscode.css")),r=(0,a.getNonce)();return`<!DOCTYPE html>\n\t\t\t<html lang="en">\n\t\t\t    <head>\n\t\t\t    \t<meta charset="UTF-8">\n\t\t\t    \t\x3c!--\n\t\t\t    \t\tUse a content security policy to only allow loading images from https or from our extension directory,\n\t\t\t    \t\tand only allow scripts that have a specific nonce.\n                    --\x3e\n                    <meta http-equiv="Content-Security-Policy" content="style-src 'unsafe-inline' ${e.cspSource}; script-src 'nonce-${r}';">\n\t\t\t    \t<meta name="viewport" content="width=device-width, initial-scale=1.0">\n\t\t\t    \t<link href="${n}" rel="stylesheet">\n\t\t\t    \t<link href="${i}" rel="stylesheet">\n\t\t\t    </head>\n                <body>\n                    <div class="menu">\n                        <h4>Task type:</h4>\n                        <select id="task_type">\n                            <option value="default">DEFAULT</option>\n                            <option value="do_build">do_build</option>\n                            <option value="do_compile">do_compile</option>\n                            <option value="do_compile_ptest_base">do_compile_ptest_base</option>\n                            <option value="do_configure">do_configure</option>\n                            <option value="do_configure_ptest_base">do_configure_ptest_base</option>\n                            <option value="do_deploy_source_date_epoch">do_deploy_source_date_epoch</option>\n                            <option value="do_fetch">do_fetch</option>\n                            <option value="do_install">do_install</option>\n                            <option value="do_install_ptest_base">do_install_ptest_base</option>\n                            <option value="do_package">do_package</option>\n                            <option value="do_package_qa">do_package_qa</option>\n                            <option value="do_package_write_rpm">do_package_write_rpm</option>\n                            <option value="do_packagedata">do_packagedata</option>\n                            <option value="do_patch">do_patch</option>\n                            <option value="do_populate_lic">do_populate_lic</option>\n                            <option value="do_populate_sysroot">do_populate_sysroot</option>\n                            <option value="do_prepare_recipe_sysroot">do_prepare_recipe_sysroot</option>\n                            <option value="do_unpack">do_unpack</option>\n                            <option value="do_populate_sysroot">do_populate_sysroot</option>\n                        </select>\n                        <h4>Mode:</h4>\n                        <select id="mode_type">\n                            <option value="default">DEFAULT</option>\n                            <option value="licenses">Licenses</option>\n                            <option value="affected_nodes">Affected nodes</option>\n                        </select>\n                        <br>\n                        <br>\n                        <h4>Force link distance:</h4>\n                        <input id="distance" type="number" value="${s.DEFAULT_DISTANCE}"></input>\n                        <h4>Force link iterations:</h4>\n                        <input id="iterations" type="number" value="${s.DEFAULT_ITERATIONS}"></input>\n                        <h4>Force node strength (repulsion):</h4>\n                        <input id="strength" type="number" value="${s.DEFAULT_STRENGTH}"></input>\n                        <br>\n                        <br>\n                        <button type="button" id="generate">Visualize</button>\n                        <button type="button" id="export">Export SVG</button>\n                        <br>\n                        <br>\n                        <input id="search-box" placeholder="search-string"></input>\n                        <button type="button" id="find-nodes">Find nodes</button>\n                        <hr>\n                        <h3>Selected node:</h3>\n                        <h4>Name:</h4>\n                        <div id="selected-name" style="color:green">-none-</div>\n                        <h4>License:</h4>\n                        <div id="selected-licence" style="color:green">-none-</div>\n                        <h4>Recipe:</h4>\n                        <div id="selected-recipe" style="color:green">-none-</div>\n                        <br>\n                        <button type="button" id="remove-selected">Remove</button>\n                        <button type="button" id="open-recipe">Open recipe</button>\n                        <script src="${t}" type="module" nonce="${r}"><\/script>\n                    <div>\n\t\t\t    </body>\n\t\t\t</html>`}}},747:function(e,t,i){var n=this&&this.__awaiter||function(e,t,i,n){return new(i||(i=Promise))((function(o,s){function r(e){try{d(n.next(e))}catch(e){s(e)}}function a(e){try{d(n.throw(e))}catch(e){s(e)}}function d(e){var t;e.done?o(e.value):(t=e.value,t instanceof i?t:new i((function(e){e(t)}))).then(r,a)}d((n=n.apply(e,t||[])).next())}))};Object.defineProperty(t,"__esModule",{value:!0}),t.VisualizationPanel=void 0;const o=i(147),s=i(496),r=i(112),a=i(812),d=i(103);t.VisualizationPanel=class{constructor(e){this.viewType="visualization",this._disposables=[],this.isShown=!1,this._extensionUri=e}createAndShow(e){this.dispose();const t=s.window.activeTextEditor?s.window.activeTextEditor.viewColumn:void 0,i=s.window.createWebviewPanel(this.viewType,"Visualization",t||s.ViewColumn.One,{enableScripts:!0,retainContextWhenHidden:!0,localResourceRoots:[s.Uri.joinPath(e,"media")]});i.webview.html=this._getHtmlForWebview(i.webview),this.initMessageReciever(i),i.onDidDispose((()=>this.dispose()),null,this._disposables),this._panel=i,this.isShown=!0}updateData(e,t,i,n,o){this.graphString=e,this.mode=t,this.distance=i,this.iterations=n,this.strength=o}initMessageReciever(e){e.webview.onDidReceiveMessage((e=>n(this,void 0,void 0,(function*(){switch(e.command){case"select-node-v":if(!e.name)return;var t=new d.Node(e.id,e.name);t.setRecipe(e.recipe),(0,r.selectNode)(t,e.used_by,e.requested,e.affected);break;case"export-svg-v":if(!e.svg)return;s.window.showSaveDialog({filters:{Images:["svg"]}}).then((t=>{void 0!==t&&(0,o.writeFileSync)(t.fsPath,'<?xml version="1.0" standalone="no"?>\r\n'+e.svg)}));break;case"show-legend-v":(0,r.setLegendData)(e.legend)}}))))}dispose(){var e;for(null===(e=this._panel)||void 0===e||e.dispose();this._disposables.length;){const e=this._disposables.pop();e&&e.dispose()}this.isShown=!1}removeNode(e){var t;null===(t=this._panel)||void 0===t||t.webview.postMessage({command:"remove-node-v",id:e})}returnNode(e){var t;null===(t=this._panel)||void 0===t||t.webview.postMessage({command:"return-node-v",name:e})}callExportSVG(){var e;null===(e=this._panel)||void 0===e||e.webview.postMessage({command:"call-export-svg-v"})}findNodes(e){var t;null===(t=this._panel)||void 0===t||t.webview.postMessage({command:"find-nodes-v",search:e})}selectNodeFromList(e){var t;null===(t=this._panel)||void 0===t||t.webview.postMessage({command:"select-node-from-list-v",name:e})}isWindowShown(){return this.isShown}_getHtmlForWebview(e){const t=e.asWebviewUri(s.Uri.joinPath(this._extensionUri,"media","visualization.js")),i=e.asWebviewUri(s.Uri.joinPath(this._extensionUri,"media","reset.css")),n=e.asWebviewUri(s.Uri.joinPath(this._extensionUri,"media","vscode.css")),o=(0,a.getNonce)();return`<!DOCTYPE html>\n\t\t\t<html lang="en">\n\t\t\t    <head>\n\t\t\t    \t<meta charset="UTF-8">\n\t\t\t    \t\x3c!--\n\t\t\t    \t\tUse a content security policy to only allow loading images from https or from our extension directory,\n\t\t\t    \t\tand only allow scripts that have a specific nonce.\n                    --\x3e\n                    <meta http-equiv="Content-Security-Policy" content="style-src 'unsafe-inline' ${e.cspSource}; script-src 'nonce-${o}';">\n\t\t\t    \t<meta name="viewport" content="width=device-width, initial-scale=1.0">\n\t\t\t    \t<link href="${n}" rel="stylesheet">\n\t\t\t    \t<link href="${i}" rel="stylesheet">\n\t\t\t    </head>\n                <body>\n                    <div class="chart">\n                        <div id="visualization"></div>\n                        <input type="hidden" id="graph" name="graph" value='${this.graphString}''>\n                        <input type="hidden" id="mode" name="mode" value='${this.mode}''>\n                        <input type="hidden" id="distance" value="${this.distance}">\n                        <input type="hidden" id="iterations" value="${this.iterations}">\n                        <input type="hidden" id="strength" value="${this.strength}">\n                        <script src="${t}" type="module" nonce="${o}"><\/script>\n                    </div>\n\t\t\t    </body>\n\t\t\t</html>`}}},771:function(e,t){var i=this&&this.__spreadArrays||function(){for(var e=0,t=0,i=arguments.length;t<i;t++)e+=arguments[t].length;var n=Array(e),o=0;for(t=0;t<i;t++)for(var s=arguments[t],r=0,a=s.length;r<a;r++,o++)n[o]=s[r];return n};Object.defineProperty(t,"__esModule",{value:!0}),t.TSMap=void 0;var n=function(){function e(e){var t=this;t._keys=[],t._values=[],t.length=0,e&&e.forEach((function(e,i){t.set(e[0],e[1])}))}return e.prototype.fromJSON=function(t,i){var n=this,o=function(t){return null!==t&&"object"==typeof t&&i?(new e).fromJSON(t,!0):Array.isArray(t)&&i?t.map((function(e){return o(e)})):t};return Object.keys(t).forEach((function(e){t.hasOwnProperty(e)&&n.set(e,o(t[e]))})),n},e.prototype.toJSON=function(){var t={},i=this,n=function(t){return t instanceof e?t.toJSON():Array.isArray(t)?t.map((function(e){return n(e)})):t};return i.keys().forEach((function(e){t[String(e)]=n(i.get(e))})),t},e.prototype.entries=function(){var e=this;return[].slice.call(this.keys().map((function(t){return[t,e.get(t)]})))},e.prototype.keys=function(){return[].slice.call(this._keys)},e.prototype.values=function(){return[].slice.call(this._values)},e.prototype.has=function(e){return this._keys.indexOf(e)>-1},e.prototype.get=function(e){var t=this._keys.indexOf(e);return t>-1?this._values[t]:void 0},e.prototype.deepGet=function(t){if(!t||!t.length)return null;var i=function(t,n){return null==t?null:n.length?i(t instanceof e?t.get(n[0]):t[n[0]],n.slice(1)):t};return i(this.get(t[0]),t.slice(1))},e.prototype.set=function(e,t){var i=this,n=this._keys.indexOf(e);return n>-1?i._values[n]=t:(i._keys.push(e),i._values.push(t),i.length=i._values.length),this},e.prototype.sortedSet=function(e,t,i,n){var o=this,s=this._keys.length,r=i||0,a=void 0!==n?n:s-1;if(0==s)return o._keys.push(e),o._values.push(t),o;if(e==this._keys[r])return this._values[r]=t,this;if(e==this._keys[a])return this._values[a]=t,this;if(e>this._keys[a])return this._keys.splice(a+1,0,e),this._values.splice(a+1,0,t),this;if(e<this._keys[r])return this._values.splice(r,0,t),this._keys.splice(r,0,e),this;if(r>=a)return this;var d=r+Math.floor((a-r)/2);return e<this._keys[d]?this.sortedSet(e,t,r,d-1):e>this._keys[d]?this.sortedSet(e,t,d+1,a):this},e.prototype.size=function(){return this.length},e.prototype.clear=function(){var e=this;return e._keys.length=e.length=e._values.length=0,this},e.prototype.delete=function(e){var t=this,i=t._keys.indexOf(e);return i>-1&&(t._keys.splice(i,1),t._values.splice(i,1),t.length=t._keys.length,!0)},e.prototype.forEach=function(e){var t=this;this._keys.forEach((function(i,n){e(t.get(i),i,n)}))},e.prototype.map=function(e){var t=this;return this.keys().map((function(i,n){return e(t.get(i),i,n)}))},e.prototype.filter=function(e){var t=this;return i(t._keys).forEach((function(i,n){!1===e(t.get(i),i,n)&&t.delete(i)})),this},e.prototype.clone=function(){return new e(this.entries())},e}();t.TSMap=n},496:e=>{e.exports=require("vscode")},147:e=>{e.exports=require("fs")}},t={},i=function i(n){var o=t[n];if(void 0!==o)return o.exports;var s=t[n]={exports:{}};return e[n].call(s.exports,s,s.exports,i),s.exports}(112);module.exports=i})();
+/******/ (() => { // webpackBootstrap
+/******/ 	"use strict";
+/******/ 	var __webpack_modules__ = ([
+/* 0 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.selectNode = exports.setLegendData = exports.findNodes = exports.exportSVG = exports.returnToVisualization = exports.addNodeToRemoved = exports.createVizualization = exports.activate = void 0;
+const vscode = __webpack_require__(1);
+const Sidebar_1 = __webpack_require__(2);
+const fs_1 = __webpack_require__(5);
+const DotParser_1 = __webpack_require__(7);
+const VisualizationPanel_1 = __webpack_require__(11);
+const RemovedTreeDataProvider_1 = __webpack_require__(12);
+const constants_1 = __webpack_require__(3);
+const helpers_1 = __webpack_require__(4);
+const ConnectionsTreeDataProvider_1 = __webpack_require__(14);
+const Legend_1 = __webpack_require__(15);
+/**
+ * Tree data provider for removed nodes TreeView
+ */
+var removedTreeDataProvider;
+/**
+ * Tree data provider for nodes that depend on the selected node TreeView
+ */
+var usedByTreeDataProvider;
+/**
+ * Tree data provider for nodes that the selected node depends on TreeView
+ */
+var requestedTreeDataProvider;
+/**
+ * Tree data provider for affected nodes TreeView
+ */
+var affectedTreeDataProvider;
+/**
+ * Sidebar menu
+ */
+var sidebar;
+/**
+ * Legend in the sidebar
+ */
+var legend;
+/**
+ * Main visualization panel
+ */
+var visualizationPanel;
+/**
+ * Activate the extension. Register commands and views.
+ * @param context Extension context.
+ */
+function activate(context) {
+    sidebar = new Sidebar_1.Sidebar(context.extensionUri);
+    legend = new Legend_1.Legend(context.extensionUri);
+    visualizationPanel = new VisualizationPanel_1.VisualizationPanel(context.extensionUri);
+    removedTreeDataProvider = new RemovedTreeDataProvider_1.RemovedTreeDataProvider();
+    usedByTreeDataProvider = new ConnectionsTreeDataProvider_1.ConnectionsTreeDataProvider();
+    requestedTreeDataProvider = new ConnectionsTreeDataProvider_1.ConnectionsTreeDataProvider();
+    affectedTreeDataProvider = new ConnectionsTreeDataProvider_1.ConnectionsTreeDataProvider();
+    context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.generateVisualization', () => {
+        createVizualization(context.extensionUri, constants_1.DEFAULT_TYPE, constants_1.DEFAULT_DISTANCE, constants_1.DEFAULT_ITERATIONS, constants_1.DEFAULT_STRENGTH, constants_1.DEFAULT_MODE);
+    }));
+    context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.returnNode', (item) => {
+        var _a;
+        if (((_a = item.label) === null || _a === void 0 ? void 0 : _a.toString()) !== undefined) {
+            returnToVisualization(item.label.toString());
+        }
+    }));
+    context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.openRecipe', (item) => {
+        var _a;
+        if (((_a = item.getRecipe()) === null || _a === void 0 ? void 0 : _a.toString()) !== undefined) {
+            (0, helpers_1.openRecipe)(item.getRecipe());
+        }
+    }));
+    context.subscriptions.push(vscode.commands.registerCommand('yocto-project-dependency-visualizer.selectNodeFromList', (item) => {
+        var _a;
+        if (item.isRemoved() === 1) {
+            vscode.window.showErrorMessage("Node is in the \"Removed nodes\" list so it cannot be selected!");
+        }
+        else if (((_a = item.label) === null || _a === void 0 ? void 0 : _a.toString()) !== undefined) {
+            selectNodeFromList(item.label.toString());
+        }
+    }));
+    context.subscriptions.push(vscode.window.registerWebviewViewProvider("visualization-sidebar", sidebar, {
+        webviewOptions: {
+            retainContextWhenHidden: true
+        }
+    }));
+    context.subscriptions.push(vscode.window.registerWebviewViewProvider("visualization-legend", legend, {
+        webviewOptions: {
+            retainContextWhenHidden: true
+        }
+    }));
+    context.subscriptions.push(vscode.window.registerTreeDataProvider("removed-list", removedTreeDataProvider));
+    context.subscriptions.push(vscode.window.registerTreeDataProvider("used-by-list", usedByTreeDataProvider));
+    context.subscriptions.push(vscode.window.registerTreeDataProvider("requested-list", requestedTreeDataProvider));
+    context.subscriptions.push(vscode.window.registerTreeDataProvider("affected-list", affectedTreeDataProvider));
+    vscode.commands.executeCommand('setContext', 'showAffected', false);
+    vscode.commands.executeCommand('setContext', 'showLegend', false);
+}
+exports.activate = activate;
+// Example how BitBake could be called
+//function callBitbake(path: string) {
+//	// use linux cd
+//	cp.exec('pushd' + path + " && dir", (err: any, stdout: any, stderr: any) => {
+//		console.log('stdout: ' + stdout);
+//		console.log('stderr: ' + stderr);
+//		if (err) {
+//			console.log('error: ' + err);
+//		}
+//	});
+//}
+/**
+ * Select node from the list of requested or used by nodes.
+ * @param name Name of the node that will be selected.
+ */
+function selectNodeFromList(name) {
+    visualizationPanel.selectNodeFromList(name);
+}
+/**
+ * Create and show visualization.
+ * @param extensionUri Extension URI.
+ * @param type Type of the BitBake task.
+ * @param distance Distance between the nodes (for the force directed algorithm).
+ * @param iterations Number of iterations (for the force directed algorithm).
+ * @param strength Strength of the force between nodes (for the force directed algorithm).
+ * @param mode Mode of analysis.
+ * @returns void
+ */
+function createVizualization(extensionUri, type, distance, iterations, strength, mode) {
+    var graphString = "";
+    if (vscode.workspace.workspaceFolders !== undefined) {
+        const dotPath = vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/task-depends.dot";
+        if (!(0, fs_1.existsSync)(dotPath)) {
+            //callBitbake(vscode.workspace.workspaceFolders[0].uri.fsPath);
+            vscode.window.showErrorMessage(".dot file not found in first workspace folder! Make sure Yocto Project directory is in the first folder of the workspace!");
+            return;
+        }
+        var dotParser = new DotParser_1.DotParser(dotPath);
+        graphString = dotParser.parseDotFile(type, mode);
+        (0, fs_1.writeFileSync)(vscode.workspace.workspaceFolders[0].uri.fsPath + "/build/graph.json", graphString);
+    }
+    if (graphString === "") {
+        vscode.window.showErrorMessage("No graph data loaded!");
+        return;
+    }
+    if (mode === "affected_nodes") {
+        vscode.commands.executeCommand('setContext', 'showAffected', true);
+    }
+    else {
+        vscode.commands.executeCommand('setContext', 'showAffected', false);
+    }
+    if (mode === "licenses") {
+        vscode.commands.executeCommand('setContext', 'showLegend', true);
+    }
+    else {
+        vscode.commands.executeCommand('setContext', 'showLegend', false);
+    }
+    visualizationPanel.updateData(graphString, mode, distance, iterations, strength);
+    removedTreeDataProvider.clearAllNodes();
+    removedTreeDataProvider.refresh();
+    sidebar.clearSelectedNode();
+    usedByTreeDataProvider.clearAllNodes();
+    requestedTreeDataProvider.clearAllNodes();
+    affectedTreeDataProvider.clearAllNodes();
+    usedByTreeDataProvider.refresh();
+    requestedTreeDataProvider.refresh();
+    affectedTreeDataProvider.refresh();
+    visualizationPanel.createAndShow(extensionUri);
+}
+exports.createVizualization = createVizualization;
+/**
+ * Add node to the removed nodes TreeView.
+ * @param name Name of the node to be removed.
+ * @param recipe Path to the recipe of the node to be removed.
+ * @param id ID of the node to be removed.
+ */
+function addNodeToRemoved(name, recipe, id) {
+    removedTreeDataProvider.addNode(name, recipe);
+    removedTreeDataProvider.refresh();
+    visualizationPanel.removeNode(id);
+    usedByTreeDataProvider.clearAllNodes();
+    requestedTreeDataProvider.clearAllNodes();
+    affectedTreeDataProvider.clearAllNodes();
+    usedByTreeDataProvider.refresh();
+    requestedTreeDataProvider.refresh();
+    affectedTreeDataProvider.refresh();
+}
+exports.addNodeToRemoved = addNodeToRemoved;
+/**
+ * Return node from the TreeView of removed nodes back to visualization.
+ * @param name Name of the node to be removed.
+ */
+function returnToVisualization(name) {
+    removedTreeDataProvider.removeNode(name);
+    removedTreeDataProvider.refresh();
+    sidebar.clearSelectedNode();
+    usedByTreeDataProvider.clearAllNodes();
+    requestedTreeDataProvider.clearAllNodes();
+    affectedTreeDataProvider.clearAllNodes();
+    usedByTreeDataProvider.refresh();
+    requestedTreeDataProvider.refresh();
+    affectedTreeDataProvider.refresh();
+    visualizationPanel.returnNode(name);
+}
+exports.returnToVisualization = returnToVisualization;
+/**
+ * Export the visualization SVG.
+ */
+function exportSVG() {
+    visualizationPanel.callExportSVG();
+}
+exports.exportSVG = exportSVG;
+/**
+ * Find nodes in visualization with a given search string.
+ * @param seach String which should be used to search for nodes.
+ */
+function findNodes(seach) {
+    if (seach == "") {
+        vscode.window.showErrorMessage("Empty string cannot be used for search of nodes!");
+        return;
+    }
+    if (!visualizationPanel.isWindowShown()) {
+        vscode.window.showErrorMessage("No visualization available!");
+        return;
+    }
+    usedByTreeDataProvider.clearAllNodes();
+    requestedTreeDataProvider.clearAllNodes();
+    affectedTreeDataProvider.clearAllNodes();
+    usedByTreeDataProvider.refresh();
+    requestedTreeDataProvider.refresh();
+    affectedTreeDataProvider.refresh();
+    visualizationPanel.findNodes(seach);
+}
+exports.findNodes = findNodes;
+/**
+ * Set data for the legend.
+ * @param legendData Legend data to be set.
+ */
+function setLegendData(legendData) {
+    legend.setLegendData(legendData);
+    legend.showLegend();
+}
+exports.setLegendData = setLegendData;
+/**
+ * Select node from visualization.
+ * @param node Node to be selected.
+ * @param used_by List of nodes that request the selected node.
+ * @param requested List of nodes that the selected node reauests.
+ * @param affected List of node directly or inderectly depenedent on the selected node.
+ */
+function selectNode(node, used_by, requested, affected) {
+    sidebar.selectNode(node);
+    usedByTreeDataProvider.clearAllNodes();
+    requestedTreeDataProvider.clearAllNodes();
+    affectedTreeDataProvider.clearAllNodes();
+    usedByTreeDataProvider.updateNodes(used_by);
+    requestedTreeDataProvider.updateNodes(requested);
+    affectedTreeDataProvider.updateNodes(affected);
+    usedByTreeDataProvider.refresh();
+    requestedTreeDataProvider.refresh();
+    affectedTreeDataProvider.refresh();
+}
+exports.selectNode = selectNode;
+
+
+/***/ }),
+/* 1 */
+/***/ ((module) => {
+
+module.exports = require("vscode");
+
+/***/ }),
+/* 2 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Sidebar = void 0;
+const vscode = __webpack_require__(1);
+const constants_1 = __webpack_require__(3);
+const extension_1 = __webpack_require__(0);
+const helpers_1 = __webpack_require__(4);
+const recipe_parser_1 = __webpack_require__(6);
+/**
+ * Class representing a sidebar menu.
+ */
+class Sidebar {
+    //public revive(panel: vscode.WebviewView) {
+    //    this._view = panel;
+    //}
+    /**
+     * Create an instance of the Sidebar.
+     * @param _extensionUri Extension URI.
+     */
+    constructor(_extensionUri) {
+        this._extensionUri = _extensionUri;
+    }
+    /**
+     * Revolves a webview view.
+     * resolveWebviewView is called when a view first becomes visible.
+     * This may happen when the view is first loaded or when the user hides and then shows a view again.
+     * @param webviewView Webview view to restore. The provider should take ownership of this view.
+     * The provider must set the webview's .html and hook up all webview events it is interested in.
+     */
+    resolveWebviewView(webviewView) {
+        this._view = webviewView;
+        webviewView.webview.options = {
+            // Allow scripts in the webview
+            enableScripts: true,
+            localResourceRoots: [
+                vscode.Uri.joinPath(this._extensionUri, "media")
+            ],
+        };
+        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+        webviewView.webview.onDidReceiveMessage((data) => __awaiter(this, void 0, void 0, function* () {
+            switch (data.command) {
+                case "visualize-s": {
+                    if (data.distance == "" || data.iterations == "" || data.strength == "") {
+                        vscode.window.showErrorMessage("Invalid force settings!");
+                        return;
+                    }
+                    (0, extension_1.createVizualization)(this._extensionUri, data.type, data.distance, data.iterations, data.strength, data.mode);
+                    break;
+                }
+                case "remove-selected-s": {
+                    if (!this.selectedNode) {
+                        vscode.window.showInformationMessage("No node selected!");
+                        return;
+                    }
+                    (0, extension_1.addNodeToRemoved)(this.selectedNode.getName(), this.selectedNode.getRecipe(), this.selectedNode.getId());
+                    this.clearSelectedNode();
+                    break;
+                }
+                case "open-selected-recipe-s": {
+                    if (!this.selectedNode) {
+                        vscode.window.showInformationMessage("No node selected!");
+                        return;
+                    }
+                    (0, helpers_1.openRecipe)(this.selectedNode.getRecipe());
+                    break;
+                }
+                case "call-export-svg-s": {
+                    (0, extension_1.exportSVG)();
+                    break;
+                }
+                case "find-nodes-s": {
+                    (0, extension_1.findNodes)(data.search);
+                    this.clearSelectedNode();
+                    break;
+                }
+            }
+        }));
+    }
+    /**
+     * Select a node from visualization. Set information to the sidebar.js file.
+     * @param node Selected node.
+     */
+    selectNode(node) {
+        var _a;
+        this.selectedNode = node;
+        var recipePath = (0, helpers_1.getRecipePath)(this.selectedNode.getRecipe());
+        var license = this.selectedNode.getLicense();
+        if (license === "") {
+            license = (0, recipe_parser_1.parseRecipe)(recipePath).license;
+        }
+        (_a = this._view) === null || _a === void 0 ? void 0 : _a.webview.postMessage({
+            command: "select-node-s",
+            name: node.getName(),
+            recipe: node.getRecipe(),
+            licence: license
+        });
+    }
+    /**
+     * Clear information about selected node. Send this information to the sidebar.js file.
+     */
+    clearSelectedNode() {
+        var _a;
+        this.selectedNode = undefined;
+        (_a = this._view) === null || _a === void 0 ? void 0 : _a.webview.postMessage({
+            command: "clear-selected-node-s",
+        });
+    }
+    /**
+     * Create HTML content of the WebView.
+     * @param webview WebView instance.
+     * @returns HTML content.
+     */
+    _getHtmlForWebview(webview) {
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "sidebar.js"));
+        const stylesResetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "reset.css"));
+        const stylesMainUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "vscode.css"));
+        const nonce = (0, helpers_1.getNonce)();
+        return `<!DOCTYPE html>
+			<html lang="en">
+			    <head>
+			    	<meta charset="UTF-8">
+			    	<!--
+			    		Use a content security policy to only allow loading images from https or from our extension directory,
+			    		and only allow scripts that have a specific nonce.
+                    -->
+                    <meta http-equiv="Content-Security-Policy" content="style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
+			    	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			    	<link href="${stylesMainUri}" rel="stylesheet">
+			    	<link href="${stylesResetUri}" rel="stylesheet">
+			    </head>
+                <body>
+                    <div class="menu">
+                        <h4>Task type:</h4>
+                        <select id="task_type">
+                            <option value="default">DEFAULT</option>
+                            <option value="do_build">do_build</option>
+                            <option value="do_compile">do_compile</option>
+                            <option value="do_compile_ptest_base">do_compile_ptest_base</option>
+                            <option value="do_configure">do_configure</option>
+                            <option value="do_configure_ptest_base">do_configure_ptest_base</option>
+                            <option value="do_deploy_source_date_epoch">do_deploy_source_date_epoch</option>
+                            <option value="do_fetch">do_fetch</option>
+                            <option value="do_install">do_install</option>
+                            <option value="do_install_ptest_base">do_install_ptest_base</option>
+                            <option value="do_package">do_package</option>
+                            <option value="do_package_qa">do_package_qa</option>
+                            <option value="do_package_write_rpm">do_package_write_rpm</option>
+                            <option value="do_packagedata">do_packagedata</option>
+                            <option value="do_patch">do_patch</option>
+                            <option value="do_populate_lic">do_populate_lic</option>
+                            <option value="do_populate_sysroot">do_populate_sysroot</option>
+                            <option value="do_prepare_recipe_sysroot">do_prepare_recipe_sysroot</option>
+                            <option value="do_unpack">do_unpack</option>
+                            <option value="do_populate_sysroot">do_populate_sysroot</option>
+                        </select>
+                        <h4>Mode:</h4>
+                        <select id="mode_type">
+                            <option value="default">DEFAULT</option>
+                            <option value="licenses">Licenses</option>
+                            <option value="affected_nodes">Affected nodes</option>
+                        </select>
+                        <br>
+                        <br>
+                        <h4>Force link distance:</h4>
+                        <input id="distance" type="number" value="${constants_1.DEFAULT_DISTANCE}"></input>
+                        <h4>Force link iterations:</h4>
+                        <input id="iterations" type="number" value="${constants_1.DEFAULT_ITERATIONS}"></input>
+                        <h4>Force node strength (repulsion):</h4>
+                        <input id="strength" type="number" value="${constants_1.DEFAULT_STRENGTH}"></input>
+                        <br>
+                        <br>
+                        <button type="button" id="generate">Visualize</button>
+                        <button type="button" id="export">Export SVG</button>
+                        <br>
+                        <br>
+                        <input id="search-box" placeholder="search-string"></input>
+                        <button type="button" id="find-nodes">Find nodes</button>
+                        <hr>
+                        <h3>Selected node:</h3>
+                        <h4>Name:</h4>
+                        <div id="selected-name" style="color:green">-none-</div>
+                        <h4>License:</h4>
+                        <div id="selected-licence" style="color:green">-none-</div>
+                        <h4>Recipe:</h4>
+                        <div id="selected-recipe" style="color:green">-none-</div>
+                        <br>
+                        <button type="button" id="remove-selected">Remove</button>
+                        <button type="button" id="open-recipe">Open recipe</button>
+                        <script src="${scriptUri}" type="module" nonce="${nonce}"></script>
+                    <div>
+			    </body>
+			</html>`;
+    }
+}
+exports.Sidebar = Sidebar;
+
+
+/***/ }),
+/* 3 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DEFAULT_STRENGTH = exports.DEFAULT_ITERATIONS = exports.DEFAULT_DISTANCE = exports.DEFAULT_MODE = exports.DEFAULT_TYPE = void 0;
+/**
+ * Default value for the selected BitBake task.
+ */
+exports.DEFAULT_TYPE = "default";
+/**
+ * Default mode of analysis.
+ */
+exports.DEFAULT_MODE = "default";
+/**
+ * Default distance for the simulation algorithm.
+ */
+exports.DEFAULT_DISTANCE = 400;
+/**
+ * Default number of iterations for the simulation algorithm.
+ */
+exports.DEFAULT_ITERATIONS = 1;
+/**
+ * Default strength for the simulation algorithm.
+ */
+exports.DEFAULT_STRENGTH = -3500;
+
+
+/***/ }),
+/* 4 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.openRecipe = exports.getNonce = exports.getRecipePath = exports.loadFile = void 0;
+const fs_1 = __webpack_require__(5);
+const vscode = __webpack_require__(1);
+/**
+ * Load data from a specified file and return them as a list of lines.
+ * @param file File to be opened.
+ * @returns List of lines (strings).
+ */
+function loadFile(file) {
+    var data;
+    try {
+        data = (0, fs_1.readFileSync)(file, "utf8");
+    }
+    catch (err) {
+        data = undefined;
+    }
+    return data === null || data === void 0 ? void 0 : data.split("\n");
+}
+exports.loadFile = loadFile;
+/**
+ * Get correct path to the recipe file (used for WSLv2 functionality).
+ * @param recipe Path to recipe.
+ * @returns Correct path to recipe.
+ */
+function getRecipePath(recipe) {
+    var recipePath = recipe;
+    if (vscode.workspace.workspaceFolders !== undefined) {
+        const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
+        if (workspacePath.includes("wsl")) {
+            const pathData = workspacePath.replace("\\\\", "").split("\\");
+            recipePath = "\\\\" + pathData[0] + "\\" + pathData[1] + "\\" + recipe.replace("/", "\\");
+        }
+    }
+    return recipePath;
+}
+exports.getRecipePath = getRecipePath;
+/**
+ * Generated nonce to be used for loading JS file in HTML.
+ * @returns Nonce string.
+ */
+function getNonce() {
+    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    var text = '';
+    for (let i = 0; i < 32; i++) {
+        text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
+}
+exports.getNonce = getNonce;
+/**
+ * Opens a recipe file.
+ * @param recipe Path to recipe.
+ */
+function openRecipe(recipe) {
+    var recipePath = getRecipePath(recipe);
+    vscode.workspace.openTextDocument(recipePath).then(document => vscode.window.showTextDocument(document), () => vscode.window.showErrorMessage("Recipe file cannot be opened!"));
+}
+exports.openRecipe = openRecipe;
+
+
+/***/ }),
+/* 5 */
+/***/ ((module) => {
+
+module.exports = require("fs");
+
+/***/ }),
+/* 6 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseRecipe = void 0;
+const helpers_1 = __webpack_require__(4);
+/**
+ * Parse a recipe file and return a dictionary with license information.
+ * @param recipe Path to the recipe file.
+ * @returns Dictionary with license information.
+ */
+function parseRecipe(recipe) {
+    var additionalInfo = {};
+    var data = (0, helpers_1.loadFile)(recipe);
+    additionalInfo.license = "none";
+    if (!data) {
+        return additionalInfo;
+    }
+    for (var i = 0; i < data.length; i++) {
+        var line = data[i];
+        var lineData = line.split("=");
+        if (lineData.length > 1) {
+            if (lineData[0].trim() === "LICENSE") {
+                additionalInfo.license = lineData[1].replace('"', "").replace('"', "").trim();
+                break;
+            }
+        }
+    }
+    return additionalInfo;
+}
+exports.parseRecipe = parseRecipe;
+
+
+/***/ }),
+/* 7 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DotParser = void 0;
+const typescript_map_1 = __webpack_require__(8);
+const constants_1 = __webpack_require__(3);
+const helpers_1 = __webpack_require__(4);
+const Link_1 = __webpack_require__(9);
+const Node_1 = __webpack_require__(10);
+const recipe_parser_1 = __webpack_require__(6);
+/**
+ * Class used for parsing BitBake generated .dot files.
+ */
+class DotParser {
+    /**
+     * Initialize DotParser class instance.
+     * @param dotPath Path to the .dot file.
+     */
+    constructor(dotPath) {
+        this.dotPath = dotPath;
+    }
+    /**
+     * Parse a .dot file based on given parameters.
+     * @param type Type of the BitBake task that will be parsed.
+     * @param mode Mode of graph analysis.
+     * @returns JSON string with data for visualization.
+     */
+    parseDotFile(type, mode) {
+        var graphString;
+        if (type === constants_1.DEFAULT_TYPE) {
+            graphString = this.parseDotFileDefault(mode);
+        }
+        else {
+            graphString = this.parseDotFileTaskType(type, mode);
+        }
+        return graphString;
+    }
+    /**
+     * Parse .dot file if "default" BitBake task type was selected (uses ".do_prepare_recipe_sysroot" on the left side and ".do_populate_sysroot" on the right side).
+     * @param mode Mode of graph analysis.
+     * @returns JSON string with data for visualization.
+     */
+    parseDotFileDefault(mode) {
+        var index = 1;
+        var data = (0, helpers_1.loadFile)(this.dotPath);
+        var nodes = [];
+        var links = [];
+        data === null || data === void 0 ? void 0 : data.forEach(line => {
+            var lineData = line.split(" -> ");
+            if (lineData[0].includes("do_prepare_recipe_sysroot") && !lineData[0].includes("label=") && lineData[1].includes("do_populate_sysroot")) {
+                const recipeName = lineData[0].replace(".do_prepare_recipe_sysroot", "").replace('"', "").replace('"', "").trim();
+                const dependentRecipeName = lineData[1].replace(".do_populate_sysroot", "").replace('"', "").replace('"', "").trim();
+                if (dependentRecipeName !== recipeName) {
+                    index = this.addGraphData(nodes, links, recipeName, dependentRecipeName, index);
+                }
+            }
+            else if (lineData[0].includes("label=")) {
+                lineData = line.split(" ");
+                const recipeNameData = lineData[0].split(".");
+                const recipeName = recipeNameData[0].replace('"', "").replace('"', "").trim();
+                index = this.setNodeRecipe(nodes, lineData[2], recipeName, index, mode);
+            }
+        });
+        return this.generateGraphJSON(nodes, links);
+    }
+    /**
+     * Parse BitBake .dot file. Uses only lines that have the specified type on the left side.
+     * @param type Type of the BitBake task that will be parsed.
+     * @param mode Mode of graph analysis.
+     * @returns JSON string with data for visualization.
+     */
+    parseDotFileTaskType(type, mode) {
+        var index = 1;
+        var data = (0, helpers_1.loadFile)(this.dotPath);
+        var nodes = [];
+        var links = [];
+        data === null || data === void 0 ? void 0 : data.forEach(line => {
+            var lineData = line.split(" -> ");
+            if (lineData[0].includes(type) && !lineData[0].includes("label=")) {
+                const recipeName = lineData[0].replace("." + type, "").replace('"', "").replace('"', "").trim();
+                const dependentRecipeName = lineData[1].split(".")[0].replace('"', "").replace('"', "").trim();
+                if (dependentRecipeName !== recipeName) {
+                    index = this.addGraphData(nodes, links, recipeName, dependentRecipeName, index);
+                }
+            }
+            else if (lineData[0].includes("label=")) {
+                lineData = line.split(" ");
+                const recipeNameData = lineData[0].split(".");
+                const recipeName = recipeNameData[0].replace('"', "").replace('"', "").trim();
+                index = this.setNodeRecipe(nodes, lineData[2], recipeName, index, mode);
+            }
+        });
+        return this.generateGraphJSON(nodes, links);
+    }
+    /**
+     * Add new nodes and links to the list of nodes and links.
+     * @param nodes List of nodes.
+     * @param links List of links.
+     * @param recipeName Name of the first recipe.
+     * @param dependentRecipeName Name of the second recipe.
+     * @param index Index of the node in the list of nodes.
+     * @returns New index.
+     */
+    addGraphData(nodes, links, recipeName, dependentRecipeName, index) {
+        var source;
+        var target;
+        if (!nodes.some(rn => rn.getName() == recipeName)) {
+            nodes.push(new Node_1.Node(index, recipeName));
+            source = index;
+            index++;
+        }
+        else {
+            source = nodes.find(rn => rn.getName() == recipeName).getId();
+        }
+        if (!nodes.some(rn => rn.getName() == dependentRecipeName)) {
+            nodes.push(new Node_1.Node(index, dependentRecipeName));
+            target = index;
+            index++;
+        }
+        else {
+            target = nodes.find(rn => rn.getName() == dependentRecipeName).getId();
+        }
+        const link = new Link_1.Link(source, target);
+        links.push(link);
+        return index;
+    }
+    /**
+     * Assing a path to the recipe file for a specified node or for a newly created one.
+     * @param nodes List of nodes.
+     * @param labelSource Label string.
+     * @param recipeName Name of the recipe.
+     * @param index Index of the node in the list of nodes.
+     * @param mode Mode of graph analysis.
+     * @returns New index.
+     */
+    setNodeRecipe(nodes, labelSource, recipeName, index, mode) {
+        var label = labelSource.replace("[", "").replace("]", "").replace("label=", "").replace('"', "").replace('"', "").trim();
+        var labelData = label.split(/\\n|:/);
+        var recipePath = labelData[labelData.length - 1];
+        if (!nodes.some(rn => rn.getName() == recipeName)) {
+            const node = new Node_1.Node(index, recipeName);
+            node.setRecipe(recipePath);
+            if (mode === "licenses") {
+                node.setLicense((0, recipe_parser_1.parseRecipe)((0, helpers_1.getRecipePath)(recipePath)).license);
+            }
+            nodes.push(node);
+            index++;
+        }
+        else {
+            const node = nodes.find(rn => rn.getName() == recipeName);
+            node.setRecipe(recipePath);
+            if (mode === "licenses") {
+                node.setLicense((0, recipe_parser_1.parseRecipe)((0, helpers_1.getRecipePath)(recipePath)).license);
+            }
+        }
+        return index;
+    }
+    /**
+     * Generate a JSON string containing list of nodes and list of links.
+     * @param nodes List of nodes.
+     * @param links List of links.
+     * @returns JSON string with data for visualization.
+     */
+    generateGraphJSON(nodes, links) {
+        var graph = new typescript_map_1.TSMap();
+        graph.set("nodes", nodes);
+        graph.set("links", links);
+        return JSON.stringify(graph.toJSON());
+    }
+}
+exports.DotParser = DotParser;
+
+
+/***/ }),
+/* 8 */
+/***/ (function(__unused_webpack_module, exports) {
+
+
+var __spreadArrays = (this && this.__spreadArrays) || function () {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TSMap = void 0;
+var TSMap = /** @class */ (function () {
+    function TSMap(inputMap) {
+        var t = this;
+        t._keys = [];
+        t._values = [];
+        t.length = 0;
+        if (inputMap) {
+            inputMap.forEach(function (v, k) {
+                t.set(v[0], v[1]);
+            });
+        }
+    }
+    /**
+     * Convert a JSON object to a map.
+     *
+     * @param {*} jsonObject JSON object to convert
+     * @param {boolean} [convertObjs] convert nested objects to maps
+     * @returns {TSMap<K, V>}
+     * @memberof TSMap
+     */
+    TSMap.prototype.fromJSON = function (jsonObject, convertObjs) {
+        var t = this;
+        var setProperty = function (value) {
+            if (value !== null && typeof value === 'object' && convertObjs)
+                return new TSMap().fromJSON(value, true);
+            if (Array.isArray(value) && convertObjs)
+                return value.map(function (v) { return setProperty(v); });
+            return value;
+        };
+        Object.keys(jsonObject).forEach(function (property) {
+            if (jsonObject.hasOwnProperty(property)) {
+                t.set(property, setProperty(jsonObject[property]));
+            }
+        });
+        return t;
+    };
+    /**
+     * Outputs the contents of the map to a JSON object
+     *
+     * @returns {{[key: string]: V}}
+     * @memberof TSMap
+     */
+    TSMap.prototype.toJSON = function () {
+        var obj = {};
+        var t = this;
+        var getValue = function (value) {
+            if (value instanceof TSMap) {
+                return value.toJSON();
+            }
+            else if (Array.isArray(value)) {
+                return value.map(function (v) { return getValue(v); });
+            }
+            else {
+                return value;
+            }
+        };
+        t.keys().forEach(function (k) {
+            obj[String(k)] = getValue(t.get(k));
+        });
+        return obj;
+    };
+    /**
+     * Get an array of arrays respresenting the map, kind of like an export function.
+     *
+     * @returns {(Array<Array<K|V>>)}
+     *
+     * @memberOf TSMap
+     */
+    TSMap.prototype.entries = function () {
+        var _this = this;
+        return [].slice.call(this.keys().map(function (k) { return [k, _this.get(k)]; }));
+    };
+    /**
+     * Get an array of keys in the map.
+     *
+     * @returns {Array<K>}
+     *
+     * @memberOf TSMap
+     */
+    TSMap.prototype.keys = function () {
+        return [].slice.call(this._keys);
+    };
+    /**
+     * Get an array of the values in the map.
+     *
+     * @returns {Array<V>}
+     *
+     * @memberOf TSMap
+     */
+    TSMap.prototype.values = function () {
+        return [].slice.call(this._values);
+    };
+    /**
+     * Check to see if an item in the map exists given it's key.
+     *
+     * @param {K} key
+     * @returns {Boolean}
+     *
+     * @memberOf TSMap
+     */
+    TSMap.prototype.has = function (key) {
+        return this._keys.indexOf(key) > -1;
+    };
+    /**
+     * Get a specific item from the map given it's key.
+     *
+     * @param {K} key
+     * @returns {V}
+     *
+     * @memberOf TSMap
+     */
+    TSMap.prototype.get = function (key) {
+        var i = this._keys.indexOf(key);
+        return i > -1 ? this._values[i] : undefined;
+    };
+    /**
+     * Safely retrieve a deeply nested property.
+     *
+     * @param {K[]} path
+     * @returns {V}
+     *
+     * @memberOf TSMap
+     */
+    TSMap.prototype.deepGet = function (path) {
+        if (!path || !path.length)
+            return null;
+        var recursiveGet = function (obj, path) {
+            if (obj === undefined || obj === null)
+                return null;
+            if (!path.length)
+                return obj;
+            return recursiveGet(obj instanceof TSMap ? obj.get(path[0]) : obj[path[0]], path.slice(1));
+        };
+        return recursiveGet(this.get(path[0]), path.slice(1));
+    };
+    /**
+     * Set a specific item in the map given it's key, automatically adds new items as needed.
+     * Ovewrrites existing items
+     *
+     * @param {K} key
+     * @param {V} value
+     *
+     * @memberOf TSMap
+     */
+    TSMap.prototype.set = function (key, value) {
+        var t = this;
+        // check if key exists and overwrite
+        var i = this._keys.indexOf(key);
+        if (i > -1) {
+            t._values[i] = value;
+        }
+        else {
+            t._keys.push(key);
+            t._values.push(value);
+            t.length = t._values.length;
+        }
+        return this;
+    };
+    /**
+     * Enters a value into the map forcing the keys to always be sorted.
+     * Stolen from https://machinesaredigging.com/2014/04/27/binary-insert-how-to-keep-an-array-sorted-as-you-insert-data-in-it/
+     * Best case speed is O(1), worse case is O(N).
+     *
+     * @param {K} key
+     * @param {V} value
+     * @param {number} [startVal]
+     * @param {number} [endVal]
+     * @returns {this}
+     * @memberof TSMap
+     */
+    TSMap.prototype.sortedSet = function (key, value, startVal, endVal) {
+        var t = this;
+        var length = this._keys.length;
+        var start = startVal || 0;
+        var end = endVal !== undefined ? endVal : length - 1;
+        if (length == 0) {
+            t._keys.push(key);
+            t._values.push(value);
+            return t;
+        }
+        if (key == this._keys[start]) {
+            this._values[start] = value;
+            return this;
+        }
+        if (key == this._keys[end]) {
+            this._values[end] = value;
+            return this;
+        }
+        if (key > this._keys[end]) {
+            this._keys.splice(end + 1, 0, key);
+            this._values.splice(end + 1, 0, value);
+            return this;
+        }
+        if (key < this._keys[start]) {
+            this._values.splice(start, 0, value);
+            this._keys.splice(start, 0, key);
+            return this;
+        }
+        if (start >= end) {
+            return this;
+        }
+        var m = start + Math.floor((end - start) / 2);
+        if (key < this._keys[m]) {
+            return this.sortedSet(key, value, start, m - 1);
+        }
+        if (key > this._keys[m]) {
+            return this.sortedSet(key, value, m + 1, end);
+        }
+        return this;
+    };
+    /**
+     * Provide a number representing the number of items in the map
+     *
+     * @returns {number}
+     *
+     * @memberOf TSMap
+     */
+    TSMap.prototype.size = function () {
+        return this.length;
+    };
+    /**
+     * Clear all the contents of the map
+     *
+     * @returns {TSMap<K,V>}
+     *
+     * @memberOf TSMap
+     */
+    TSMap.prototype.clear = function () {
+        var t = this;
+        t._keys.length = t.length = t._values.length = 0;
+        return this;
+    };
+    /**
+     * Delete an item from the map given it's key
+     *
+     * @param {K} key
+     * @returns {Boolean}
+     *
+     * @memberOf TSMap
+     */
+    TSMap.prototype.delete = function (key) {
+        var t = this;
+        var i = t._keys.indexOf(key);
+        if (i > -1) {
+            t._keys.splice(i, 1);
+            t._values.splice(i, 1);
+            t.length = t._keys.length;
+            return true;
+        }
+        return false;
+    };
+    /**
+     * Used to loop through the map.
+     *
+     * @param {(value:V,key?:K,index?:number) => void} callbackfn
+     *
+     * @memberOf TSMap
+     */
+    TSMap.prototype.forEach = function (callbackfn) {
+        var _this = this;
+        this._keys.forEach(function (v, i) {
+            callbackfn(_this.get(v), v, i);
+        });
+    };
+    /**
+     * Returns an array containing the returned value of each item in the map.
+     *
+     * @param {(value:V,key?:K,index?:number) => any} callbackfn
+     * @returns {Array<any>}
+     *
+     * @memberOf TSMap
+     */
+    TSMap.prototype.map = function (callbackfn) {
+        var _this = this;
+        return this.keys().map(function (itemKey, i) {
+            return callbackfn(_this.get(itemKey), itemKey, i);
+        });
+    };
+    /**
+     * Removes items based on a conditional function passed to filter.
+     * Mutates the map in place.
+     *
+     * @param {(value:V,key?:K,index?:number) => Boolean} callbackfn
+     * @returns {TSMap<K,V>}
+     *
+     * @memberOf TSMap
+     */
+    TSMap.prototype.filter = function (callbackfn) {
+        var t = this;
+        __spreadArrays(t._keys).forEach(function (v, i) {
+            if (callbackfn(t.get(v), v, i) === false)
+                t.delete(v);
+        });
+        return this;
+    };
+    /**
+     * Creates a deep copy of the map, breaking all references to the old map and it's children.
+     * Uses JSON.parse so any functions will be stringified and lose their original purpose.
+     *
+     * @returns {TSMap<K,V>}
+     *
+     * @memberOf TSMap
+     */
+    TSMap.prototype.clone = function () {
+        return new TSMap(this.entries());
+    };
+    return TSMap;
+}());
+exports.TSMap = TSMap;
+
+
+/***/ }),
+/* 9 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Link = void 0;
+/**
+ * Class representing a link in the graph.
+ */
+class Link {
+    /**
+     * Create an instance representing a connection.
+     * @param source ID of the source recipe node.
+     * @param target ID of the target recipe node.
+     */
+    constructor(source, target) {
+        this.source = source;
+        this.target = target;
+    }
+}
+exports.Link = Link;
+
+
+/***/ }),
+/* 10 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Node = void 0;
+/**
+ * Class representing a recipe (node) in the graph.
+ */
+class Node {
+    /**
+     * Create an instance representing a recipe (node) in the graph.
+     * @param id ID of the node.
+     * @param name Name of the node.
+     */
+    constructor(id, name) {
+        this.id = id;
+        this.name = name;
+        this.recipe = "";
+        this.license = "";
+    }
+    /**
+     * Return an ID of the node.
+     * @returns ID of the node.
+     */
+    getId() {
+        return this.id;
+    }
+    /**
+     * Return a name of the node.
+     * @returns Name of the node.
+     */
+    getName() {
+        return this.name;
+    }
+    /**
+     * Return a recipe of the node.
+     * @returns Recipe of the node.
+     */
+    getRecipe() {
+        return this.recipe;
+    }
+    /**
+     * Set path to the recipe.
+     * @param recipe Path to the recipe.
+     */
+    setRecipe(recipe) {
+        this.recipe = recipe;
+    }
+    /**
+     * Return a license used by the node.
+     * @returns Used license of the node.
+     */
+    getLicense() {
+        return this.license;
+    }
+    /**
+    * Set used license.
+    * @param license Used license.
+    */
+    setLicense(license) {
+        this.license = license;
+    }
+}
+exports.Node = Node;
+
+
+/***/ }),
+/* 11 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.VisualizationPanel = void 0;
+const fs_1 = __webpack_require__(5);
+const vscode = __webpack_require__(1);
+const extension_1 = __webpack_require__(0);
+const helpers_1 = __webpack_require__(4);
+const Node_1 = __webpack_require__(10);
+/**
+ * Class representing a panel (tab) with visualization
+ */
+class VisualizationPanel {
+    //public static kill() {
+    //    VisualizationPanel.currentPanel?.dispose();
+    //    VisualizationPanel.currentPanel = undefined;
+    //}
+    //
+    //public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+    //    VisualizationPanel.currentPanel = new VisualizationPanel(panel, extensionUri);
+    //}
+    /**
+     * Initialize panel class.
+     * @param extensionUri Extension URI.
+     */
+    constructor(extensionUri) {
+        /**
+         * Identifies the type of the WebView panel.
+         */
+        this.viewType = "visualization";
+        /**
+         * List of disposables, which should be disposed when the panel is disposed.
+         */
+        this._disposables = [];
+        /**
+         * Stores if window is shown.
+         */
+        this.isShown = false;
+        this._extensionUri = extensionUri;
+    }
+    /**
+     * Creates and show a panel or just show if already exists.
+     * @param extensionUri Extension URI.
+     * @returns void
+     */
+    createAndShow(extensionUri) {
+        this.dispose();
+        const column = vscode.window.activeTextEditor
+            ? vscode.window.activeTextEditor.viewColumn
+            : undefined;
+        const panel = vscode.window.createWebviewPanel(this.viewType, "Visualization", column || vscode.ViewColumn.One, {
+            enableScripts: true,
+            retainContextWhenHidden: true,
+            localResourceRoots: [
+                vscode.Uri.joinPath(extensionUri, "media")
+            ],
+        });
+        panel.webview.html = this._getHtmlForWebview(panel.webview);
+        this.initMessageReciever(panel);
+        panel.onDidDispose(() => this.dispose(), null, this._disposables);
+        this._panel = panel;
+        this.isShown = true;
+    }
+    /**
+     * Update visualization data of  the panel.
+     * @param graphString JSON string with graph data.
+     * @param mode Mode of analysis.
+     * @param distance Distance between the nodes (for the force directed algorithm).
+     * @param iterations Number of iterations (for the force directed algorithm).
+     * @param strength Strength of the force between nodes (for the force directed algorithm).
+     */
+    updateData(graphString, mode, distance, iterations, strength) {
+        this.graphString = graphString;
+        this.mode = mode;
+        this.distance = distance;
+        this.iterations = iterations;
+        this.strength = strength;
+    }
+    /**
+     * Initialize actions for different messages.
+     * @param panel WebView panel.
+     */
+    initMessageReciever(panel) {
+        panel.webview.onDidReceiveMessage((data) => __awaiter(this, void 0, void 0, function* () {
+            switch (data.command) {
+                case "select-node-v": {
+                    if (!data.name) {
+                        return;
+                    }
+                    var selectedNode = new Node_1.Node(data.id, data.name);
+                    selectedNode.setRecipe(data.recipe);
+                    (0, extension_1.selectNode)(selectedNode, data.used_by, data.requested, data.affected);
+                    break;
+                }
+                case "export-svg-v": {
+                    if (!data.svg) {
+                        return;
+                    }
+                    vscode.window.showSaveDialog({ filters: { "Images": ["svg"] } }).then(file => {
+                        if (file !== undefined) {
+                            (0, fs_1.writeFileSync)(file.fsPath, '<?xml version="1.0" standalone="no"?>\r\n' + data.svg);
+                        }
+                    });
+                    break;
+                }
+                case "show-legend-v": {
+                    (0, extension_1.setLegendData)(data.legend);
+                    break;
+                }
+                case "node-not-found-v": {
+                    vscode.window.showInformationMessage("No nodes found!");
+                    break;
+                }
+            }
+        }));
+    }
+    /**
+     * Close the panel and clear resources.
+     */
+    dispose() {
+        var _a;
+        (_a = this._panel) === null || _a === void 0 ? void 0 : _a.dispose();
+        while (this._disposables.length) {
+            const x = this._disposables.pop();
+            if (x) {
+                x.dispose();
+            }
+        }
+        this.isShown = false;
+    }
+    /**
+     * Send message to the visualization.js file that the node with given ID should be removed.
+     * @param id ID of the node which should be removed.
+     */
+    removeNode(id) {
+        var _a;
+        (_a = this._panel) === null || _a === void 0 ? void 0 : _a.webview.postMessage({
+            command: "remove-node-v",
+            id: id
+        });
+    }
+    /**
+     * Send message to the visualization.js file that the node with given ID should be returned
+     * to visualization.
+     * @param name Name of the node which should be returned to visualization.
+     */
+    returnNode(name) {
+        var _a;
+        (_a = this._panel) === null || _a === void 0 ? void 0 : _a.webview.postMessage({
+            command: "return-node-v",
+            name: name
+        });
+    }
+    /**
+     * Send message to the visualization.js file that the SVG should be exported.
+     */
+    callExportSVG() {
+        var _a;
+        (_a = this._panel) === null || _a === void 0 ? void 0 : _a.webview.postMessage({
+            command: "call-export-svg-v"
+        });
+    }
+    /**
+     * Send message to the visualization.js file that nodes with search string in names should be highlighted.
+     * @param search String which should be used to search for nodes.
+     */
+    findNodes(search) {
+        var _a;
+        (_a = this._panel) === null || _a === void 0 ? void 0 : _a.webview.postMessage({
+            command: "find-nodes-v",
+            search: search
+        });
+    }
+    /**
+     * Send message to the visualization.js file that the node from the TreeView should be selected.
+     * @param name Name of the node which should be selected.
+     */
+    selectNodeFromList(name) {
+        var _a;
+        (_a = this._panel) === null || _a === void 0 ? void 0 : _a.webview.postMessage({
+            command: "select-node-from-list-v",
+            name: name
+        });
+    }
+    /**
+     * Gets if window is shown.
+     * @returns false if window in not shown else true.
+     */
+    isWindowShown() {
+        return this.isShown;
+    }
+    /**
+     * Create HTML content of the WebView.
+     * @param webview WebView instance.
+     * @returns HTML content.
+     */
+    _getHtmlForWebview(webview) {
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "visualization.js"));
+        const stylesResetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "reset.css"));
+        const stylesMainUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "vscode.css"));
+        const nonce = (0, helpers_1.getNonce)();
+        return `<!DOCTYPE html>
+			<html lang="en">
+			    <head>
+			    	<meta charset="UTF-8">
+			    	<!--
+			    		Use a content security policy to only allow loading images from https or from our extension directory,
+			    		and only allow scripts that have a specific nonce.
+                    -->
+                    <meta http-equiv="Content-Security-Policy" content="style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
+			    	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			    	<link href="${stylesMainUri}" rel="stylesheet">
+			    	<link href="${stylesResetUri}" rel="stylesheet">
+			    </head>
+                <body>
+                    <div class="chart">
+                        <div id="visualization"></div>
+                        <input type="hidden" id="graph" name="graph" value='${this.graphString}''>
+                        <input type="hidden" id="mode" name="mode" value='${this.mode}''>
+                        <input type="hidden" id="distance" value="${this.distance}">
+                        <input type="hidden" id="iterations" value="${this.iterations}">
+                        <input type="hidden" id="strength" value="${this.strength}">
+                        <script src="${scriptUri}" type="module" nonce="${nonce}"></script>
+                    </div>
+			    </body>
+			</html>`;
+    }
+}
+exports.VisualizationPanel = VisualizationPanel;
+
+
+/***/ }),
+/* 12 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.RemovedTreeDataProvider = void 0;
+const vscode = __webpack_require__(1);
+const NodeTreeItem_1 = __webpack_require__(13);
+/**
+ * TreeProvider class for a TreeView of nodes removed from visualization.
+ */
+class RemovedTreeDataProvider {
+    /**
+     * Inititalizes the provider.
+     */
+    constructor() {
+        /**
+         * Action executed when TreeView data changed.
+         */
+        this._onDidChangeTreeData = new vscode.EventEmitter();
+        this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+        this.data = [];
+    }
+    /**
+     * Refresh the TreeViev.
+     */
+    refresh() {
+        this._onDidChangeTreeData.fire();
+    }
+    /**
+     * Get the tree item (implemented because it is required by the interface).
+     * @param element Element that is also returned.
+     * @returns
+     */
+    getTreeItem(element) {
+        return element;
+    }
+    /**
+     * Get a list of childer of the element.
+     * @returns All data elements as there is only one layer in the tree.
+     */
+    getChildren(element) {
+        //if (element === undefined) {
+        //    return this.data;
+        //}
+        //return element.children;
+        return this.data;
+    }
+    /**
+     * Adds a new node to the list of removed nodes.
+     * @param label Name of the recipe.
+     * @param recipe Path to the recipe file.
+     */
+    addNode(label, recipe) {
+        this.data.push(new NodeTreeItem_1.NodeTreeItem(label, recipe, 0));
+    }
+    /**
+     * Remove node from the list of removed nodes.
+     * @param label Name of the node to be removed.
+     */
+    removeNode(label) {
+        var index = this.data.findIndex((node) => node.label === label);
+        this.data.splice(index, 1);
+    }
+    /**
+     * Clear the list of nodes.
+     */
+    clearAllNodes() {
+        this.data = [];
+    }
+}
+exports.RemovedTreeDataProvider = RemovedTreeDataProvider;
+
+
+/***/ }),
+/* 13 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NodeTreeItem = void 0;
+const vscode = __webpack_require__(1);
+/**
+ * Class representing an recipe (node) in the TreeView.
+ */
+class NodeTreeItem extends vscode.TreeItem {
+    /**
+     * Create an instance representing an recipe (node) in the TreeView.
+     * @param label Name of the item in the TreeView.
+     * @param recipe Path to the recipe.
+     * @param is_removed Stores of recipe (node) is removed from the visualization.
+     */
+    constructor(label, recipe, is_removed) {
+        super(label, vscode.TreeItemCollapsibleState.None);
+        this.recipe = recipe;
+        this.is_removed = is_removed;
+        this.tooltip = this.recipe;
+    }
+    /**
+     * Return if node is removed from the visualization.
+     * @returns 1 if node is removed from the visualization.
+     */
+    isRemoved() {
+        return this.is_removed;
+    }
+    /**
+     * Get the path to the recipe.
+     * @returns Path to the recipe.
+     */
+    getRecipe() {
+        return this.recipe;
+    }
+}
+exports.NodeTreeItem = NodeTreeItem;
+
+
+/***/ }),
+/* 14 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ConnectionsTreeDataProvider = void 0;
+const vscode = __webpack_require__(1);
+const NodeTreeItem_1 = __webpack_require__(13);
+/**
+ * TreeProvider class for a TreeView of requested and used-by nodes from visualization.
+ */
+class ConnectionsTreeDataProvider {
+    /**
+     * Inititalizes the provider.
+     */
+    constructor() {
+        /**
+         * Action executed when TreeView data changed.
+         */
+        this._onDidChangeTreeData = new vscode.EventEmitter();
+        this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+        this.data = [];
+    }
+    /**
+     * Refresh the TreeViev.
+     */
+    refresh() {
+        this._onDidChangeTreeData.fire();
+    }
+    /**
+     * Get the tree item (implemented because it is required by the interface).
+     * @param element Element that is also returned.
+     * @returns
+     */
+    getTreeItem(element) {
+        return element;
+    }
+    /**
+     * Get a list of childer of the element.
+     * @returns All data elements as there is only one layer in the tree.
+     */
+    getChildren(element) {
+        //if (element === undefined) {
+        //    return this.data;
+        //}
+        //return element.children;
+        return this.data;
+    }
+    /**
+     * Adds new nodes to the TreeView.
+     * @param nodeData List of nodes to be added.
+     */
+    updateNodes(nodeData) {
+        nodeData.forEach(node => {
+            this.data.push(new NodeTreeItem_1.NodeTreeItem(node.name, node.recipe, node.is_removed));
+        });
+    }
+    /**
+     * Clear the list of nodes.
+     */
+    clearAllNodes() {
+        this.data = [];
+    }
+}
+exports.ConnectionsTreeDataProvider = ConnectionsTreeDataProvider;
+
+
+/***/ }),
+/* 15 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Legend = void 0;
+const vscode = __webpack_require__(1);
+const helpers_1 = __webpack_require__(4);
+/**
+ * Class representing a legend in the sidebar.
+ */
+class Legend {
+    //public revive(panel: vscode.WebviewView) {
+    //    this._view = panel;
+    //}
+    /**
+     * Create an instance of the Legend.
+     * @param _extensionUri Extension URI.
+     */
+    constructor(_extensionUri) {
+        this._extensionUri = _extensionUri;
+        this.legendData = [];
+    }
+    /**
+     * Revolves a webview view.
+     * resolveWebviewView is called when a view first becomes visible.
+     * This may happen when the view is first loaded or when the user hides and then shows a view again.
+     * @param webviewView Webview view to restore. The provider should take ownership of this view.
+     * The provider must set the webview's .html and hook up all webview events it is interested in.
+     */
+    resolveWebviewView(webviewView) {
+        this._view = webviewView;
+        webviewView.webview.options = {
+            // Allow scripts in the webview
+            enableScripts: true,
+            localResourceRoots: [
+                vscode.Uri.joinPath(this._extensionUri, "media")
+            ],
+        };
+        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+        this.showLegend();
+    }
+    /**
+     * Set list of legend elements.
+     * @param legendData List of legend elements.
+     */
+    setLegendData(legendData) {
+        this.legendData = legendData;
+    }
+    /**
+     * Send message with list of legend elements to the legend.js file.
+     */
+    showLegend() {
+        var _a;
+        (_a = this._view) === null || _a === void 0 ? void 0 : _a.webview.postMessage({
+            command: "show-legend-s",
+            legend: this.legendData
+        });
+    }
+    /**
+     * Create HTML content of the WebView.
+     * @param webview WebView instance.
+     * @returns HTML content.
+     */
+    _getHtmlForWebview(webview) {
+        // // And the uri we use to load this script in the webview
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "legend.js"));
+        // Local path to css styles
+        // Uri to load styles into webview
+        const stylesResetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "reset.css"));
+        const stylesMainUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "vscode.css"));
+        //// Use a nonce to only allow specific scripts to be run
+        const nonce = (0, helpers_1.getNonce)();
+        return `<!DOCTYPE html>
+			<html lang="en">
+			    <head>
+			    	<meta charset="UTF-8">
+			    	<!--
+			    		Use a content security policy to only allow loading images from https or from our extension directory,
+			    		and only allow scripts that have a specific nonce.
+                    -->
+                    <meta http-equiv="Content-Security-Policy" content="style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
+			    	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			    	<link href="${stylesMainUri}" rel="stylesheet">
+			    	<link href="${stylesResetUri}" rel="stylesheet">
+			    </head>
+                <body>
+                    <div id="legend">
+                        <script src="${scriptUri}" type="module" nonce="${nonce}"></script>
+                    <div>
+			    </body>
+			</html>`;
+    }
+}
+exports.Legend = Legend;
+
+
+/***/ })
+/******/ 	]);
+/************************************************************************/
+/******/ 	// The module cache
+/******/ 	var __webpack_module_cache__ = {};
+/******/ 	
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/ 		// Check if module is in cache
+/******/ 		var cachedModule = __webpack_module_cache__[moduleId];
+/******/ 		if (cachedModule !== undefined) {
+/******/ 			return cachedModule.exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = __webpack_module_cache__[moduleId] = {
+/******/ 			// no module.id needed
+/******/ 			// no module.loaded needed
+/******/ 			exports: {}
+/******/ 		};
+/******/ 	
+/******/ 		// Execute the module function
+/******/ 		__webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/ 	
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/ 	
+/************************************************************************/
+/******/ 	
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	// This entry module is referenced by other modules so it can't be inlined
+/******/ 	var __webpack_exports__ = __webpack_require__(0);
+/******/ 	module.exports = __webpack_exports__;
+/******/ 	
+/******/ })()
+;
+//# sourceMappingURL=extension.js.map

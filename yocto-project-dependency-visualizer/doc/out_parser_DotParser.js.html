@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: out/parser/DotParser.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: out/parser/DotParser.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DotParser = void 0;
+const typescript_map_1 = require("typescript-map");
+const constants_1 = require("../support/constants");
+const helpers_1 = require("../support/helpers");
+const Link_1 = require("./Link");
+const Node_1 = require("./Node");
+const recipe_parser_1 = require("./recipe_parser");
+/**
+ * Class used for parsing BitBake generated .dot files.
+ */
+class DotParser {
+    /**
+     * Initialize DotParser class instance.
+     * @param dotPath Path to the .dot file.
+     */
+    constructor(dotPath) {
+        this.dotPath = dotPath;
+    }
+    /**
+     * Parse a .dot file based on given parameters.
+     * @param type Type of the BitBake task that will be parsed.
+     * @param mode Mode of graph analysis.
+     * @returns JSON string with data for visualization.
+     */
+    parseDotFile(type, mode) {
+        var graphString;
+        if (type === constants_1.DEFAULT_TYPE) {
+            graphString = this.parseDotFileDefault(mode);
+        }
+        else {
+            graphString = this.parseDotFileTaskType(type, mode);
+        }
+        return graphString;
+    }
+    /**
+     * Parse .dot file if "default" BitBake task type was selected (uses ".do_prepare_recipe_sysroot" on the left side and ".do_populate_sysroot" on the right side).
+     * @param mode Mode of graph analysis.
+     * @returns JSON string with data for visualization.
+     */
+    parseDotFileDefault(mode) {
+        var index = 1;
+        var data = (0, helpers_1.loadFile)(this.dotPath);
+        var nodes = [];
+        var links = [];
+        data === null || data === void 0 ? void 0 : data.forEach(line => {
+            var lineData = line.split(" -> ");
+            if (lineData[0].includes("do_prepare_recipe_sysroot") &amp;&amp; !lineData[0].includes("label=") &amp;&amp; lineData[1].includes("do_populate_sysroot")) {
+                const recipeName = lineData[0].replace(".do_prepare_recipe_sysroot", "").replace('"', "").replace('"', "").trim();
+                const dependentRecipeName = lineData[1].replace(".do_populate_sysroot", "").replace('"', "").replace('"', "").trim();
+                if (dependentRecipeName !== recipeName) {
+                    index = this.addGraphData(nodes, links, recipeName, dependentRecipeName, index);
+                }
+            }
+            else if (lineData[0].includes("label=")) {
+                lineData = line.split(" ");
+                const recipeNameData = lineData[0].split(".");
+                const recipeName = recipeNameData[0].replace('"', "").replace('"', "").trim();
+                index = this.setNodeRecipe(nodes, lineData[2], recipeName, index, mode);
+            }
+        });
+        return this.generateGraphJSON(nodes, links);
+    }
+    /**
+     * Parse BitBake .dot file. Uses only lines that have the specified type on the left side.
+     * @param type Type of the BitBake task that will be parsed.
+     * @param mode Mode of graph analysis.
+     * @returns JSON string with data for visualization.
+     */
+    parseDotFileTaskType(type, mode) {
+        var index = 1;
+        var data = (0, helpers_1.loadFile)(this.dotPath);
+        var nodes = [];
+        var links = [];
+        data === null || data === void 0 ? void 0 : data.forEach(line => {
+            var lineData = line.split(" -> ");
+            if (lineData[0].includes(type) &amp;&amp; !lineData[0].includes("label=")) {
+                const recipeName = lineData[0].replace("." + type, "").replace('"', "").replace('"', "").trim();
+                const dependentRecipeName = lineData[1].split(".")[0].replace('"', "").replace('"', "").trim();
+                if (dependentRecipeName !== recipeName) {
+                    index = this.addGraphData(nodes, links, recipeName, dependentRecipeName, index);
+                }
+            }
+            else if (lineData[0].includes("label=")) {
+                lineData = line.split(" ");
+                const recipeNameData = lineData[0].split(".");
+                const recipeName = recipeNameData[0].replace('"', "").replace('"', "").trim();
+                index = this.setNodeRecipe(nodes, lineData[2], recipeName, index, mode);
+            }
+        });
+        return this.generateGraphJSON(nodes, links);
+    }
+    /**
+     * Add new nodes and links to the list of nodes and links.
+     * @param nodes List of nodes.
+     * @param links List of links.
+     * @param recipeName Name of the first recipe.
+     * @param dependentRecipeName Name of the second recipe.
+     * @param index Index of the node in the list of nodes.
+     * @returns New index.
+     */
+    addGraphData(nodes, links, recipeName, dependentRecipeName, index) {
+        var source;
+        var target;
+        if (!nodes.some(rn => rn.getName() == recipeName)) {
+            nodes.push(new Node_1.Node(index, recipeName));
+            source = index;
+            index++;
+        }
+        else {
+            source = nodes.find(rn => rn.getName() == recipeName).getId();
+        }
+        if (!nodes.some(rn => rn.getName() == dependentRecipeName)) {
+            nodes.push(new Node_1.Node(index, dependentRecipeName));
+            target = index;
+            index++;
+        }
+        else {
+            target = nodes.find(rn => rn.getName() == dependentRecipeName).getId();
+        }
+        const link = new Link_1.Link(source, target);
+        links.push(link);
+        return index;
+    }
+    /**
+     * Assing a path to the recipe file for a specified node or for a newly created one.
+     * @param nodes List of nodes.
+     * @param labelSource Label string.
+     * @param recipeName Name of the recipe.
+     * @param index Index of the node in the list of nodes.
+     * @param mode Mode of graph analysis.
+     * @returns New index.
+     */
+    setNodeRecipe(nodes, labelSource, recipeName, index, mode) {
+        var label = labelSource.replace("[", "").replace("]", "").replace("label=", "").replace('"', "").replace('"', "").trim();
+        var labelData = label.split(/\\n|:/);
+        var recipePath = labelData[labelData.length - 1];
+        if (!nodes.some(rn => rn.getName() == recipeName)) {
+            const node = new Node_1.Node(index, recipeName);
+            node.setRecipe(recipePath);
+            if (mode === "licenses") {
+                node.setLicense((0, recipe_parser_1.parseRecipe)((0, helpers_1.getRecipePath)(recipePath)).license);
+            }
+            nodes.push(node);
+            index++;
+        }
+        else {
+            const node = nodes.find(rn => rn.getName() == recipeName);
+            node.setRecipe(recipePath);
+            if (mode === "licenses") {
+                node.setLicense((0, recipe_parser_1.parseRecipe)((0, helpers_1.getRecipePath)(recipePath)).license);
+            }
+        }
+        return index;
+    }
+    /**
+     * Generate a JSON string containing list of nodes and list of links.
+     * @param nodes List of nodes.
+     * @param links List of links.
+     * @returns JSON string with data for visualization.
+     */
+    generateGraphJSON(nodes, links) {
+        var graph = new typescript_map_1.TSMap();
+        graph.set("nodes", nodes);
+        graph.set("links", links);
+        return JSON.stringify(graph.toJSON());
+    }
+}
+exports.DotParser = DotParser;
+//# sourceMappingURL=DotParser.js.map</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ConnectionsTreeDataProvider.html">ConnectionsTreeDataProvider</a></li><li><a href="DotParser.html">DotParser</a></li><li><a href="Legend.html">Legend</a></li><li><a href="Link.html">Link</a></li><li><a href="Node.html">Node</a></li><li><a href="NodeTreeItem.html">NodeTreeItem</a></li><li><a href="RemovedTreeDataProvider.html">RemovedTreeDataProvider</a></li><li><a href="Sidebar.html">Sidebar</a></li><li><a href="VisualizationPanel.html">VisualizationPanel</a></li></ul><h3>Global</h3><ul><li><a href="global.html#activate">activate</a></li><li><a href="global.html#addAffectedNodes">addAffectedNodes</a></li><li><a href="global.html#addNodeToRemoved">addNodeToRemoved</a></li><li><a href="global.html#affectedTreeDataProvider">affectedTreeDataProvider</a></li><li><a href="global.html#arrowInit">arrowInit</a></li><li><a href="global.html#BASE_AFFECTED_NODE_COLOR">BASE_AFFECTED_NODE_COLOR</a></li><li><a href="global.html#BASE_FOUND_NODE_COLOR">BASE_FOUND_NODE_COLOR</a></li><li><a href="global.html#BASE_LINK_COLOR">BASE_LINK_COLOR</a></li><li><a href="global.html#BASE_NODE_COLOR">BASE_NODE_COLOR</a></li><li><a href="global.html#BASE_NODE_NAME_COLOR">BASE_NODE_NAME_COLOR</a></li><li><a href="global.html#BASE_REQUESTED_NODE_COLOR">BASE_REQUESTED_NODE_COLOR</a></li><li><a href="global.html#BASE_SELECTED_NODE_COLOR">BASE_SELECTED_NODE_COLOR</a></li><li><a href="global.html#BASE_USED_BY_COLOR">BASE_USED_BY_COLOR</a></li><li><a href="global.html#callExportSVG">callExportSVG</a></li><li><a href="global.html#clearSelectedNode">clearSelectedNode</a></li><li><a href="global.html#createVizualization">createVizualization</a></li><li><a href="global.html#DEFAULT_DISTANCE">DEFAULT_DISTANCE</a></li><li><a href="global.html#DEFAULT_ITERATIONS">DEFAULT_ITERATIONS</a></li><li><a href="global.html#DEFAULT_MODE">DEFAULT_MODE</a></li><li><a href="global.html#DEFAULT_STRENGTH">DEFAULT_STRENGTH</a></li><li><a href="global.html#DEFAULT_TYPE">DEFAULT_TYPE</a></li><li><a href="global.html#exportSVG">exportSVG</a></li><li><a href="global.html#findNodes">findNodes</a></li><li><a href="global.html#generate">generate</a></li><li><a href="global.html#getNonce">getNonce</a></li><li><a href="global.html#getRecipePath">getRecipePath</a></li><li><a href="global.html#graph_data">graph_data</a></li><li><a href="global.html#graph_links">graph_links</a></li><li><a href="global.html#graph_nodes">graph_nodes</a></li><li><a href="global.html#graph_package_names">graph_package_names</a></li><li><a href="global.html#height">height</a></li><li><a href="global.html#initData">initData</a></li><li><a href="global.html#initMatrix">initMatrix</a></li><li><a href="global.html#initSimulation">initSimulation</a></li><li><a href="global.html#initSVG">initSVG</a></li><li><a href="global.html#labelsUpdate">labelsUpdate</a></li><li><a href="global.html#legend">legend</a></li><li><a href="global.html#LICENSE_COLORS">LICENSE_COLORS</a></li><li><a href="global.html#linkMatrix">linkMatrix</a></li><li><a href="global.html#linksUpdate">linksUpdate</a></li><li><a href="global.html#loadFile">loadFile</a></li><li><a href="global.html#mode">mode</a></li><li><a href="global.html#node_height">node_height</a></li><li><a href="global.html#node_width">node_width</a></li><li><a href="global.html#nodesUpdate">nodesUpdate</a></li><li><a href="global.html#openSelectedRecipe">openSelectedRecipe</a></li><li><a href="global.html#parseRecipe">parseRecipe</a></li><li><a href="global.html#removedLinks">removedLinks</a></li><li><a href="global.html#removedNodes">removedNodes</a></li><li><a href="global.html#removedTreeDataProvider">removedTreeDataProvider</a></li><li><a href="global.html#removeNode">removeNode</a></li><li><a href="global.html#removeSelected">removeSelected</a></li><li><a href="global.html#requestedTreeDataProvider">requestedTreeDataProvider</a></li><li><a href="global.html#returnNode">returnNode</a></li><li><a href="global.html#returnToVisualization">returnToVisualization</a></li><li><a href="global.html#selectNode">selectNode</a></li><li><a href="global.html#selectNodeAffectedConnections">selectNodeAffectedConnections</a></li><li><a href="global.html#selectNodeFromList">selectNodeFromList</a></li><li><a href="global.html#selectNodeNormalConnections">selectNodeNormalConnections</a></li><li><a href="global.html#setAffectedColors">setAffectedColors</a></li><li><a href="global.html#setDimensions">setDimensions</a></li><li><a href="global.html#setLegendData">setLegendData</a></li><li><a href="global.html#setLicensesColors">setLicensesColors</a></li><li><a href="global.html#setSelectedColors">setSelectedColors</a></li><li><a href="global.html#showLegend">showLegend</a></li><li><a href="global.html#sidebar">sidebar</a></li><li><a href="global.html#simulation">simulation</a></li><li><a href="global.html#simulationTicked">simulationTicked</a></li><li><a href="global.html#svg">svg</a></li><li><a href="global.html#used_licenses">used_licenses</a></li><li><a href="global.html#usedByTreeDataProvider">usedByTreeDataProvider</a></li><li><a href="global.html#visualizationPanel">visualizationPanel</a></li><li><a href="global.html#vscode">vscode</a></li><li><a href="global.html#width">width</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Mon May 16 2022 20:57:50 GMT+0200 (Středoevropský letní čas)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
